@@ -7,6 +7,7 @@
 | Purpose | **Quick understanding**: what this repository says, what the idea is, and where it is strong or weak |
 | Nature | ⚠️ **Conjectural summary (K2/K3)** — a **candidate model** based on public information and black-box observation; **it does not represent the product's real implementation** |
 | Detailed version | [`README.md`](README.md) §5 Architecture Model · [`垫片分层模型_进程与线程.md`](垫片分层模型_进程与线程.md) |
+| **Applicable version** | **3.4.0 (versionCode 3688)** — the product has since been renamed/evolved (current package `com.vphoneos.titan`); **the latest version may differ, and this file makes no inference about it** |
 | License | [`LICENSE`](LICENSE) (MIT) |
 
 ---

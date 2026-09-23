@@ -33,6 +33,11 @@
 > **This report does not claim to reconstruct the product's internal source implementation.**
 > K1 / K2 / K3 separate **experimental facts**, **strongly supported architecture explanations**,
 > and **implementation hypotheses indistinguishable by black-box means**.
+>
+> ⚠️ **Applicable version**: this report is only responsible for **`3.4.0` (versionCode 3688)**.
+> The product has since been renamed and evolved (current package `com.vphoneos.titan`, site <https://vphoneos.com>);
+> **the version we analyzed may differ from its latest version, and later versions may use entirely
+> different architecture and implementation choices — this report makes no inference about them.**
 
 ---
 
@@ -297,18 +302,32 @@ Its ADB banner advertises `product:cancro model:Nexus device:android`.
 
 ---
 
-## 3. Software Version
+## 3. Software Version and Timeliness
+
+### 3.1 Target
 
 | Item | Value | Tier |
 |---|---|---|
-| Package | `com.vphonegaga.titan` | P0 |
+| Package | `com.vphonegaga.titan` (**the package name of this version**) | P0 |
 | **Version name** | **3.4.0** | P0 |
 | Version code | **3688** | P0 |
 | minSdkVersion | **21** | P0 |
 | **targetSdkVersion** | **29** (Android 10) | P0 |
 | Instance dir | `files/instance1/androidfs_10.0.0/` | P2 |
 
-> **`targetSdk=29` is one important compatibility condition of the current implementation route**:
+### 3.2 ⚠️ Version-scope statement (important)
+
+> **This report is responsible only for `3.4.0` (versionCode 3688).**
+>
+> - The product has since been **renamed / evolved** (current official package `com.vphoneos.titan`,
+>   official site <https://vphoneos.com>).
+> - **None of the conclusions here should be extrapolated to other versions.** Later versions may use
+>   **entirely different architecture and implementation choices**, about which this report **makes no inference**.
+> - To assess another version, re-run the reproducible commands in §9 on that version.
+>
+> This also applies to every other document in this repository (overview / layering model / reproduction roadmap / P1 archive).
+
+> **`targetSdk=29` is one important compatibility condition of this version's implementation route**:
 > pinning targetSdk at Android 10 significantly reduces friction from Android 11+ scoped storage,
 > package visibility, background-execution, and process-count limits.
 >

@@ -1213,6 +1213,7 @@ adb -s $G push raw_syscall /data/local/tmp/ && adb -s $G shell /data/local/tmp/r
 | **`P1_归档_最高权限取证记录.md`** | **早期带 root 对照载体取得的 P1（宿主 root）观测归档** |
 | `取证_2026-09-23/` | 原始证据存档（挂载表、filesystems、IPC 等） |
 | **`假设验证_共享mm证伪.md`** | **对外部 AI「共享 mm_struct / 信号隔离」模型的假设—判据—证伪记录** |
+| **`垫片分层模型_进程与线程.md`** | **垫片如何套起来：guest 进程/线程 ↔ host 进程/线程的 1:1 映射 + shim 线程 + broker** |
 | `一些其他错误.txt` | 早期分析的认知偏差勘误（挂载 / 网络 / 架构模型） |
 
 ---

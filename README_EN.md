@@ -1286,6 +1286,7 @@ Remove all "bypass / crack / deceive / break through" phrasing; describe results
 | **`P1_归档_最高权限取证记录.md`** | **archive of P1 (host root) observations from the early root-enabled comparison carrier** (Chinese) |
 | `取证_2026-09-23/` | raw evidence archive (mount tables, filesystems, IPC, etc.) |
 | **`假设验证_共享mm证伪.md`** | **hypothesis—criterion—falsification record for an external AI's "shared mm_struct / signal isolation" model** (Chinese) |
+| **`垫片分层模型_进程与线程.md`** | **how the shim is layered: 1:1 guest-process/thread ↔ host-process/thread mapping + shim thread + broker** (Chinese) |
 | `一些其他错误.txt` | errata on earlier analyses' cognitive biases (mount / network / architecture model) |
 
 ---

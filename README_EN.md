@@ -6,7 +6,7 @@
 | Previous version | v1.1 (deterministic-layering revision) |
 | Companion document | [`垫片分层模型_进程与线程.md`](垫片分层模型_进程与线程.md) · [`复现路线与垫片设计.md`](复现路线与垫片设计.md) |
 | Target | `com.vphonegaga.titan` **3.4.0** (versionCode 3688) |
-| **Quick start** | ⭐ **[`架构速览.md`](架构速览.md)** — one-minute architecture overview (Chinese; conjectural summary) |
+| **Quick start** | ⭐ **[中文速览](架构速览.md)** · **[English overview](架构速览_EN.md)** — one-minute overview of the idea and its trade-offs (conjectural) |
 | Official site | <https://vphoneos.com> |
 | **Authorization status** | **No authorization obtained** · independent third-party analysis · **the official source prevails** |
 | **Compliance** | if the vendor explicitly prohibits publication, we will **manually close this repository** |
@@ -1275,7 +1275,7 @@ problems down and explaining how they were corrected.**
 | File | Content |
 |---|---|
 | `README.md` / `README_EN.md` | architecture analysis (CN/EN) |
-| **`架构速览.md`** | **⭐ quick start: one-minute overview of the idea, pros and cons** (Chinese; conjectural summary) |
+| **`架构速览.md`** / **`架构速览_EN.md`** | **⭐ quick start (CN/EN): one-minute overview of the idea, pros and cons** (conjectural summary) |
 | **`垫片分层模型_进程与线程.md`** | **how the shim is layered: 1:1 guest-process/thread ↔ host-process/thread mapping + shim thread + broker** (Chinese) |
 | **`复现路线与垫片设计.md`** | **engineering concept: reproduction roadmap + shim design + high-performance design** (Chinese) |
 | `P1_归档_结构性观测.md` | archive of P1 (host root) **structural** observations from the early root-enabled comparison carrier (Chinese) |

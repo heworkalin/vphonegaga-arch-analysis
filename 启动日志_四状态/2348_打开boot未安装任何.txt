@@ -1,36 +1,25 @@
 u0_a383       6346  1450 1 21:14:15 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32061 32059 0 23:48:39 136:2 00:00:00 grep titan
+[observer]      32061 32059 0 23:48:39 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32067 32059 0 23:48:39 136:2 00:00:00 grep titan
+[observer]      32067 32059 0 23:48:39 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32143 32059 0 23:48:40 136:2 00:00:00 grep titan
+[observer]      32143 32059 0 23:48:40 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32155 32059 0 23:48:39 136:2 00:00:00 grep titan
+[observer]      32155 32059 0 23:48:39 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32165 32059 0 23:48:40 136:2 00:00:00 grep titan
+[observer]      32165 32059 0 23:48:40 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32188 32059 0 23:48:41 136:2 00:00:00 grep titan
+[observer]      32188 32059 0 23:48:41 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32238 32059 0 23:48:41 136:2 00:00:00 grep titan
+[observer]      32238 32059 0 23:48:41 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32259 32059 3 23:48:42 136:2 00:00:00 grep titan
+[observer]      32259 32059 3 23:48:42 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:17 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
-u0_a616      32270 32059 1 23:48:42 136:2 00:00:00 grep titan
+[observer]      32270 32059 1 23:48:42 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 44 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
-u0_a616      32389 32059 0 23:48:43 136:2 00:00:00 grep titan
+[observer]      32389 32059 0 23:48:43 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 21 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 2 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -43,13 +32,12 @@ u0_a383      32534 32478 1 23:48:42 ?     00:00:00 titan64_15:servicemanager
 u0_a383      32536 32478 2 23:48:42 ?     00:00:00 titan64_16:hwservicemanager
 u0_a383      32538 32478 1 23:48:42 ?     00:00:00 titan64_17:vndservicemanager
 u0_a383      32552 32478 3 23:48:42 ?     00:00:00 titan64_23:vold
-u0_a616      32557 32059 0 23:48:42 136:2 00:00:00 grep titan
+[observer]      32557 32059 0 23:48:42 136:2 00:00:00 grep titan
 u0_a383      32559 32478 1 23:48:42 ?     00:00:00 titan64_25:android.hardware.keymaster@3.0-service
 u0_a383      32569 32478 1 23:48:43 ?     00:00:00 titan64_30:sh
 u0_a383      32574 32569 0 23:48:43 ?     00:00:00 titan64_32:mini-keyctl
 u0_a383        302 32478 5 23:48:43 ?     00:00:00 titan64_93:surfaceflinger
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 23 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 5 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 1 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -86,7 +74,7 @@ u0_a383      32727 32478 1 23:48:43 ?     00:00:00 titan64_65:android.hardware.h
 u0_a383      32731 32478 2 23:48:43 ?     00:00:00 titan64_68:android.hardware.power@1.1-service
 u0_a383      32739 32478 2 23:48:43 ?     00:00:00 titan64_75:android.hardware.sensors@1.0-service
 u0_a383      32743 32478 5 23:48:43 ?     00:00:00 titan64_78:android.hardware.thermal@2.0-service.mock
-u0_a616      32748 32059 0 23:48:43 136:2 00:00:00 grep titan
+[observer]      32748 32059 0 23:48:43 136:2 00:00:00 grep titan
 u0_a383      32749 32478 3 23:48:43 ?     00:00:00 titan64_81:android.hardware.vibrator@1.0-service
 u0_a383      32755 32478 3 23:48:43 ?     00:00:00 titan64_85:android.hardware.wifi@1.0-service
 u0_a383      32758 32478 3 23:48:43 ?     00:00:00 titan64_87:ashmemd
@@ -116,10 +104,9 @@ u0_a383        434 32478 21 23:48:44 ?    00:00:00 titan64_153:media.swcodec
 u0_a383        445 32478 7 23:48:44 ?     00:00:00 titan64_161:gatekeeperd
 u0_a383        473 32478 0 23:48:44 ?     00:00:00 titan64_186:tombstoned
 u0_a383        484 32478 4 23:48:44 ?     00:00:00 titan64_195:android.hardware.biometrics.fingerprint@2.1-service
-u0_a616        507 32059 0 23:48:44 136:2 00:00:00 grep titan
+[observer]        507 32059 0 23:48:44 136:2 00:00:00 grep titan
 u0_a383        552 32614 0 23:48:44 ?     00:00:00 titan64_226:ip6tables-restore
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 25 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 6 23:48:43 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 1 23:48:43 ?     00:00:00 titan32_0:kernel
@@ -185,10 +172,9 @@ u0_a383        434 32478 5 23:48:43 ?     00:00:00 titan64_153:media.swcodec
 u0_a383        445 32478 2 23:48:43 ?     00:00:00 titan64_161:gatekeeperd
 u0_a383        473 32478 0 23:48:43 ?     00:00:00 titan64_186:tombstoned
 u0_a383        484 32478 1 23:48:43 ?     00:00:00 titan64_195:android.hardware.biometrics.fingerprint@2.1-service
-u0_a616        694 32059 0 23:48:44 136:2 00:00:00 grep titan
+[observer]        694 32059 0 23:48:44 136:2 00:00:00 grep titan
 u0_a383        708 32614 0 23:48:44 ?     00:00:00 titan64_291:iptables-restore
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 17 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 4 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -254,12 +240,11 @@ u0_a383        434 32478 5 23:48:44 ?     00:00:00 titan64_153:media.swcodec
 u0_a383        445 32478 2 23:48:44 ?     00:00:00 titan64_161:gatekeeperd
 u0_a383        473 32478 0 23:48:44 ?     00:00:00 titan64_186:tombstoned
 u0_a383        484 32478 2 23:48:44 ?     00:00:00 titan64_195:android.hardware.biometrics.fingerprint@2.1-service
-u0_a616        821 32059 0 23:48:45 136:2 00:00:00 grep titan
+[observer]        821 32059 0 23:48:45 136:2 00:00:00 grep titan
 u0_a383        827 32616 0 23:48:45 ?     00:00:00 titan64_369:com.android.bluetooth
 u0_a383        860 32616 0 23:48:45 ?     00:00:00 titan64_385:zygote64
 u0_a383        865 32614 0 23:48:45 ?     00:00:00 titan64_389:iptables-restore
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 18 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 4 23:48:43 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:43 ?     00:00:00 titan32_0:kernel
@@ -333,9 +318,8 @@ u0_a383       1420 32623 2 23:48:44 ?     00:00:00 titan32_560:webview_zygote
 u0_a383       1443 32616 17 23:48:44 ?    00:00:00 titan64_584:com.android.settings
 u0_a383       1507 32616 3 23:48:44 ?     00:00:00 titan64_607:com.android.launcher3
 u0_a383       1571 32616 3 23:48:44 ?     00:00:00 titan64_636:android.ext.services
-u0_a616       1877 32059 0 23:48:45 136:2 00:00:00 grep titan
+[observer]       1877 32059 0 23:48:45 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 14 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -412,9 +396,8 @@ u0_a383       1571 32616 3 23:48:45 ?     00:00:00 titan64_636:android.ext.servi
 u0_a383       1951 32616 8 23:48:46 ?     00:00:00 titan64_748:com.android.inputmethod.latin
 u0_a383       1955 32478 3 23:48:46 ?     00:00:00 titan64_753:wpa_supplicant
 u0_a383       2026 32616 3 23:48:46 ?     00:00:00 titan64_805:com.android.cellbroadcastreceiver
-u0_a616       2076 32059 0 23:48:46 136:2 00:00:00 grep titan
+[observer]       2076 32059 0 23:48:46 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 16 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:43 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:43 ?     00:00:00 titan32_0:kernel
@@ -491,10 +474,9 @@ u0_a383       1571 32616 1 23:48:44 ?     00:00:00 titan64_636:android.ext.servi
 u0_a383       1951 32616 3 23:48:45 ?     00:00:00 titan64_748:com.android.inputmethod.latin
 u0_a383       1955 32478 2 23:48:45 ?     00:00:00 titan64_753:wpa_supplicant
 u0_a383       2026 32616 2 23:48:45 ?     00:00:00 titan64_805:com.android.cellbroadcastreceiver
-u0_a616       2236 32059 0 23:48:45 136:2 00:00:00 grep titan
+[observer]       2236 32059 0 23:48:45 136:2 00:00:00 grep titan
 u0_a383       2256 32614 0 23:48:46 ?     00:00:00 titan64_864:netd
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 14 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -577,10 +559,9 @@ u0_a383       2353 32616 2 23:48:46 ?     00:00:00 titan64_891:com.android.se
 u0_a383       2414 32616 5 23:48:46 ?     00:00:00 titan64_928:com.android.ims.rcsservice
 u0_a383       2441 32616 14 23:48:46 ?    00:00:00 titan64_947:bin.mt.plus
 u0_a383       2530 32616 4 23:48:46 ?     00:00:00 titan64_984:com.r68e4c650e5.fba29baa831.o629129a9d.ae072663ec9
-u0_a616       2578 32059 0 23:48:46 136:2 00:00:00 grep titan
+[observer]       2578 32059 0 23:48:46 136:2 00:00:00 grep titan
 u0_a383       2623  2279 0 23:48:46 ?     00:00:00 titan64_1033:log
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 15 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -664,9 +645,8 @@ u0_a383       2530 32616 60 23:48:47 ?    00:00:00 titan64_984:com.r68e4c650e5.f
 u0_a383       2675 32616 4 23:48:47 ?     00:00:00 titan64_1051:com.android.smspush
 u0_a383       2744  2441 0 23:48:47 ?     00:00:00 titan64_1102:bin.mt.plus
 u0_a383       2767 32616 24 23:48:47 ?    00:00:00 titan64_1107:android.process.acore
-u0_a616       2876 32059 0 23:48:47 136:2 00:00:00 grep titan
+[observer]       2876 32059 0 23:48:47 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 16 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:43 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:43 ?     00:00:00 titan32_0:kernel
@@ -750,9 +730,8 @@ u0_a383       2530 32616 40 23:48:46 ?    00:00:00 titan64_984:com.r68e4c650e5.f
 u0_a383       2675 32616 1 23:48:46 ?     00:00:00 titan64_1051:com.android.smspush
 u0_a383       2744  2441 0 23:48:46 ?     00:00:00 titan64_1102:bin.mt.plus
 u0_a383       2767 32616 11 23:48:46 ?    00:00:00 titan64_1107:android.process.acore
-u0_a616       3085 32059 0 23:48:47 136:2 00:00:00 grep titan
+[observer]       3085 32059 0 23:48:47 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 14 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -838,9 +817,8 @@ u0_a383       2744  2441 0 23:48:47 ?     00:00:00 titan64_1102:bin.mt.plus
 u0_a383       2767 32616 12 23:48:47 ?    00:00:00 titan64_1107:android.process.acore
 u0_a383       3181 32616 10 23:48:48 ?    00:00:00 titan64_1207:android.process.media
 u0_a383       3318 32616 6 23:48:48 ?     00:00:00 titan64_1219:com.android.dynsystem
-u0_a616       3335 32059 0 23:48:48 136:2 00:00:00 grep titan
+[observer]       3335 32059 0 23:48:48 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 14 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:43 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:43 ?     00:00:00 titan32_0:kernel
@@ -925,10 +903,9 @@ u0_a383       2767 32616 7 23:48:46 ?     00:00:00 titan64_1107:android.process.
 u0_a383       3181 32616 3 23:48:47 ?     00:00:00 titan64_1207:android.process.media
 u0_a383       3452 32616 2 23:48:47 ?     00:00:00 titan64_1254:com.android.printspooler
 u0_a383       3585 32616 2 23:48:48 ?     00:00:00 titan64_1275:com.android.keychain
-u0_a616       3658 32059 0 23:48:48 136:2 00:00:00 grep titan
+[observer]       3658 32059 0 23:48:48 136:2 00:00:00 grep titan
 u0_a383       3663 32616 1 23:48:48 ?     00:00:00 titan64_1296:com.android.inputmethod.latin
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 13 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -1012,10 +989,9 @@ u0_a383       2767 32616 7 23:48:47 ?     00:00:00 titan64_1107:android.process.
 u0_a383       3181 32616 3 23:48:48 ?     00:00:00 titan64_1207:android.process.media
 u0_a383       3452 32616 2 23:48:48 ?     00:00:00 titan64_1254:com.android.printspooler
 u0_a383       3724 32616 24 23:48:49 ?    00:00:00 titan64_1337:com.android.messaging
-u0_a616       3895 32059 0 23:48:49 136:2 00:00:00 grep titan
+[observer]       3895 32059 0 23:48:49 136:2 00:00:00 grep titan
 u0_a383       3927 32616 3 23:48:49 ?     00:00:00 titan64_1412:com.android.providers.calendar
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 13 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:43 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:43 ?     00:00:00 titan32_0:kernel
@@ -1099,10 +1075,9 @@ u0_a383       2767 32616 6 23:48:46 ?     00:00:00 titan64_1107:android.process.
 u0_a383       3181 32616 2 23:48:47 ?     00:00:00 titan64_1207:android.process.media
 u0_a383       3452 32616 1 23:48:47 ?     00:00:00 titan64_1254:com.android.printspooler
 u0_a383       4136 32616 3 23:48:48 ?     00:00:00 titan64_1479:com.thirdparty.superuser
-u0_a616       4176 32059 0 23:48:49 136:2 00:00:00 grep titan
+[observer]       4176 32059 0 23:48:49 136:2 00:00:00 grep titan
 u0_a383       4178 32616 5 23:48:49 ?     00:00:00 titan64_1500:com.byyoung.setting
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 11 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 2 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -1187,10 +1162,9 @@ u0_a383       3181 32616 2 23:48:47 ?     00:00:00 titan64_1207:android.process.
 u0_a383       3452 32616 1 23:48:47 ?     00:00:00 titan64_1254:com.android.printspooler
 u0_a383       4178 32616 59 23:48:49 ?    00:00:00 titan64_1500:com.byyoung.setting
 u0_a383       4272 32616 3 23:48:49 ?     00:00:00 titan64_1519:com.android.localtransport
-u0_a616       4416 32059 0 23:48:49 136:2 00:00:00 grep titan
+[observer]       4416 32059 0 23:48:49 136:2 00:00:00 grep titan
 u0_a383       4437  4178 2 23:48:49 ?     00:00:00 titan64_1551:su
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 11 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 2 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -1279,10 +1253,9 @@ u0_a383       4437  4178 4 23:48:50 ?     00:00:00 titan64_1551:su
 u0_a383       4454 32450 0 23:48:50 ?     00:00:00 titan64_1556:su
 u0_a383       4458  4454 7 23:48:50 ?     00:00:00 titan64_1557:sh
 u0_a383       4460  4458 42 23:48:50 ?    00:00:00 titan64_1558:app_process
-u0_a616       4575 32059 0 23:48:50 136:2 00:00:00 grep titan
+[observer]       4575 32059 0 23:48:50 136:2 00:00:00 grep titan
 u0_a383       4594  4458 13 23:48:50 ?    00:00:00 titan64_1581:getprop
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 10 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 2 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -1368,9 +1341,8 @@ u0_a383       3452 32616 1 23:48:47 ?     00:00:00 titan64_1254:com.android.prin
 u0_a383       4460 32450 13 23:48:49 ?    00:00:00 titan64_1558:app_process
 u0_a383       4642 32616 13 23:48:50 ?    00:00:00 titan64_1585:com.termux
 u0_a383       4751 32616 3 23:48:50 ?     00:00:00 titan64_1615:com.thirdparty.superuser
-u0_a616       4768 32059 0 23:48:50 136:2 00:00:00 grep titan
+[observer]       4768 32059 0 23:48:50 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 10 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 2 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel
@@ -1455,9 +1427,8 @@ u0_a383       3181 32616 8 23:48:48 ?     00:00:00 titan64_1207:android.process.
 u0_a383       3452 32616 1 23:48:48 ?     00:00:00 titan64_1254:com.android.printspooler
 u0_a383       4642 32616 13 23:48:51 ?    00:00:00 titan64_1585:com.termux
 u0_a383       4751 32616 35 23:48:51 ?    00:00:00 titan64_1615:com.thirdparty.superuser
-u0_a616       4862 32059 0 23:48:51 136:2 00:00:00 grep titan
+[observer]       4862 32059 0 23:48:51 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:15 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:03 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 10 23:48:43 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 3 23:48:43 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:43 ?     00:00:00 titan32_0:kernel
@@ -1542,9 +1513,8 @@ u0_a383       3181 32616 15 23:48:47 ?    00:00:00 titan64_1207:android.process.
 u0_a383       3452 32616 0 23:48:47 ?     00:00:00 titan64_1254:com.android.printspooler
 u0_a383       4642 32616 6 23:48:50 ?     00:00:00 titan64_1585:com.termux
 u0_a383       4751 32616 14 23:48:50 ?    00:00:00 titan64_1615:com.thirdparty.superuser
-u0_a616       4938 32059 0 23:48:51 136:2 00:00:00 grep titan
+[observer]       4938 32059 0 23:48:51 136:2 00:00:00 grep titan
 u0_a383       6346  1450 1 21:14:14 ?     00:01:18 com.vphonegaga.titan
-u0_a448      22670  1453 0 18:56:02 ?     00:00:42 com.xunmeng.pinduoduo:titan
 u0_a383      32289  1450 10 23:48:42 ?    00:00:00 com.vphonegaga.titan:instance1
 u0_a383      32450 32289 2 23:48:42 ?     00:00:00 titan64_0:kernel
 u0_a383      32476 32450 0 23:48:42 ?     00:00:00 titan32_0:kernel

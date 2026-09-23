@@ -9,7 +9,7 @@
 | **快速入口** | ⭐ **[中文速览](架构速览.md)** · **[English overview](架构速览_EN.md)** —— 一分钟读懂思路与优劣（推测性）|
 | 官方站点 | <https://vphoneos.com> |
 | 相关公开专利 | 《一种在安卓系统上运行虚拟安卓系统的方法》· 公开号 **CN111026449B**（公开文献，仅作参考）|
-| 许可 | **MIT**（见 [`LICENSE`](LICENSE)）|
+| 许可 | **MIT** —— 仅适用于**本仓库自有文本与测试代码**；产品名称、商标、第三方二进制及引用资料**不在此许可范围内**（详见 [`LICENSE`](LICENSE)）|
 | 分析方法 | 纯系统行为取证（无反汇编、无反编译、未使用 IDA / Ghidra / Frida）+ **双设备对照实验** |
 | 验证载体 | 1 台宿主设备（OnePlus PJE110）+ 其内置 Android 10 客户机实例 |
 | 权限层级 | **P0** 宿主 adbd（无 root）· **P1** 宿主 root（**早期对照载体可达**）· **P2** 客户机内部 shell（shell / su） |
@@ -18,6 +18,19 @@
 | **确定性层级** | **K1** 直接证明 / **K2** 行为高度支持的架构解释 / **K3** 黑盒不可区分 |
 
 [english](./README_EN.md)
+
+---
+
+## 定位
+
+> **VPhoneGaGa 3.4.0 的黑盒运行时架构实证研究**
+>
+> 基于**系统行为观测**、**跳权限层级取证**以及 **Host / Guest 双设备对照实验**，
+> 对其**进程模型、syscall 语义投影、虚拟文件系统、网络控制面、存储容器、IPC
+> 与 Android 用户态执行环境**进行**外部建模**。
+>
+> **本文不声称还原其内部源码实现。** K1 / K2 / K3 用于区分
+> **实验事实**、**强支持的架构解释**与**黑盒不可区分的实现假设**。
 
 ---
 
@@ -127,10 +140,10 @@ AI 辅助分析产生，并经后续实测复核后更正。
 | 宿主 root | **P1** | `uid=0(root)` | `su -c`（**仅早期对照载体可达**，Magisk Alpha） | 早期对照载体 |
 | 客户机内部 shell | **P2** | 客户机内 `uid=2000` → `su` → 客户机 `uid=0` | `adb connect 127.0.0.1:6556` | 客户机实例 |
 
-> **说明**：主宿主载体**没有 P1 层级**（无 `su`、无 magiskd）。
-> **但 P1 观测被完整归档保留**（见 §2.2、§4.2、§4.4、§4.9、§4.13）：`/proc/<pid>/{ns,maps,fd}` 等
-> 在早期对照载体（带 root）上取得的**结构性观测**，本版**予以保留而非删除**。
-> 本版的核心增量（挂载 / 网络 / 系统信息投影的对照实验）则全部在 **P0 + P2** 完成。
+> **说明（重要）**：主宿主载体（OnePlus PJE110）**没有 P1 层级**（无 `su`、无 magiskd）。
+> **P1 证据来自早期对照载体，用于补充验证，不用于描述当前 PJE110 的实时状态。**
+> 具体的 P1 结构性观测（`/proc/<pid>/{ns,maps,fd}` 等）见 §2.2、§4.2、§4.4、§4.9、§4.13。
+> 本版的核心增量（挂载 / 网络 / 系统信息投影的对照实验）**全部在 P0 + P2 完成**。
 
 ### 1.4 P0 / P1 / P2 的实际权限边界（实测）
 
@@ -301,8 +314,8 @@ ADB 广播身份为 `product:cancro model:Nexus device:android`。
 
 ```text
 宿主 zygote64
-├── com.vphonegaga.titan              uid u0_a383 (10383)   cpuset:/foreground
-└── com.vphonegaga.titan:instance1    uid u0_a383 (10383)   cpuset:/foreground
+├── com.vphonegaga.titan              uid 10383   cpuset:/foreground
+└── com.vphonegaga.titan:instance1    uid 10383   cpuset:/foreground
     └── titan64_0:kernel              ← 客户机虚拟内核（64 位），Name=libloader64.so
         ├── titan32_0:kernel          ← 客户机虚拟内核（32 位），由 64 位 fork
         ├── titan64_1:init            ← 客户机 init（真父 = 虚拟内核）

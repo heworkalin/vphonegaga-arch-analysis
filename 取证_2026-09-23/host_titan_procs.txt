@@ -25,7 +25,6 @@
 13558 28385 u0_a383      titan64_4325:libbusybox.so
 13575 13558 u0_a383      titan64_4329:com.topjohnwu.magisk:root:0
 16898 28418 u0_a383      titan64_4588:com.android.settings
-22670  1453 u0_a448      com.xunmeng.pinduoduo:titan
 28146  1450 u0_a383      com.vphonegaga.titan:instance1
 28274 28146 u0_a383      titan64_0:kernel
 28302 28274 u0_a383      titan32_0:kernel

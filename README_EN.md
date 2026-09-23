@@ -9,7 +9,7 @@
 | **Quick start** | ⭐ **[中文速览](架构速览.md)** · **[English overview](架构速览_EN.md)** — one-minute overview of the idea and its trade-offs (conjectural) |
 | Official site | <https://vphoneos.com> |
 | Related public patent | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Publication No. **CN111026449B** (public document, reference only) |
-| License | **MIT** (see [`LICENSE`](LICENSE)) |
+| License | **MIT** — applies only to **this repository's own text and test code**; product names, trademarks, third-party binaries, and cited materials are **not covered** (see [`LICENSE`](LICENSE)) |
 | Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) + **dual-device controlled experiments** |
 | Carriers | 1 host device (OnePlus PJE110) + its built-in Android 10 guest instance |
 | Permission tiers | **P0** host adbd (unrooted) · **P1** host root (**early comparison carrier only**) · **P2** guest-internal shell (shell / su) |
@@ -18,6 +18,21 @@
 | **Determinacy levels** | **K1** directly proven / **K2** behavior strongly supports an architectural explanation / **K3** black-box indistinguishable |
 
 [中文](./README.md)
+
+---
+
+## Positioning
+
+> **A black-box runtime architecture study of VPhoneGaGa 3.4.0**
+>
+> Based on **system-behavior observation**, **cross-permission-tier forensics**, and **Host/Guest
+> dual-device controlled experiments**, it **externally models** the product's **process model,
+> syscall semantic projection, virtual filesystem, network control plane, storage container, IPC,
+> and Android userspace execution environment**.
+>
+> **This report does not claim to reconstruct the product's internal source implementation.**
+> K1 / K2 / K3 separate **experimental facts**, **strongly supported architecture explanations**,
+> and **implementation hypotheses indistinguishable by black-box means**.
 
 ---
 
@@ -131,12 +146,12 @@ design in §1.1, and the determinacy layering in §0 — not from anyone's autho
 | Host root | **P1** | `uid=0(root)` | `su -c` (**early comparison carrier only**, Magisk Alpha) | Early comparison carrier |
 | Guest-internal shell | **P2** | guest `uid=2000` → `su` → guest `uid=0` | `adb connect 127.0.0.1:6556` | Guest instance |
 
-> **Note**: the primary host carrier **has no P1 tier** (no `su`, no magiskd).
-> **But the P1 observations are archived in full and retained** (see §2.2, §4.2, §4.4, §4.9, §4.13):
-> `/proc/<pid>/{ns,maps,fd}` and other **structural observations** obtained on the early
-> root-enabled comparison carrier are **kept, not deleted**, in this version.
+> **Note (important)**: the primary host carrier (OnePlus PJE110) **has no P1 tier** (no `su`, no magiskd).
+> **P1 evidence comes from an early comparison carrier; it supplements verification and is not used to
+> describe the current PJE110's live state.**
+> Specific P1 structural observations (`/proc/<pid>/{ns,maps,fd}` etc.) appear in §2.2, §4.2, §4.4, §4.9, §4.13.
 > This version's core increment (controlled experiments on mounts / networking / system-info projection)
-> is entirely obtainable at **P0 + P2**.
+> was **done entirely at P0 + P2**.
 
 ### 1.4 Actual permission boundaries per tier (measured)
 
@@ -315,8 +330,8 @@ Measured on the host side:
 
 ```text
 host zygote64
-├── com.vphonegaga.titan              uid u0_a383 (10383)   cpuset:/foreground
-└── com.vphonegaga.titan:instance1    uid u0_a383 (10383)   cpuset:/foreground
+├── com.vphonegaga.titan              uid 10383   cpuset:/foreground
+└── com.vphonegaga.titan:instance1    uid 10383   cpuset:/foreground
     └── titan64_0:kernel              ← guest virtual kernel (64-bit), Name=libloader64.so
         ├── titan32_0:kernel          ← guest virtual kernel (32-bit), forked by the 64-bit one
         ├── titan64_1:init            ← guest init (real parent = virtual kernel)

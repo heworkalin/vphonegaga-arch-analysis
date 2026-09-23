@@ -1273,15 +1273,13 @@ problems down and explaining how they were corrected.**
 
 | File | Content |
 |---|---|
-| `README.md` / `README_EN.md` | forensics report (CN/EN) |
-| **`复现路线与垫片设计.md`** | **engineering concept: reproduction roadmap + shim design + high-performance design** (Chinese) |
-| `复现路线与垫片设计.md` | engineering concept: reproduction roadmap + shim design + high-performance design (Chinese) |
-| `重新取证报告_2026-09-23.md` | full record of this round of dual-device controlled experiments |
-| **`P1_归档_结构性观测.md`** | **archive of P1 (host root) observations from the early root-enabled comparison carrier** (Chinese) |
-| `取证_2026-09-23/` | raw evidence archive (mount tables, filesystems, IPC, etc.) |
-| **`假设验证_共享mm证伪.md`** | **hypothesis—criterion—falsification record for an external AI's "shared mm_struct / signal isolation" model** (Chinese) |
+| `README.md` / `README_EN.md` | architecture analysis (CN/EN) |
 | **`垫片分层模型_进程与线程.md`** | **how the shim is layered: 1:1 guest-process/thread ↔ host-process/thread mapping + shim thread + broker** (Chinese) |
-| `一些其他错误.txt` | errata on earlier analyses' cognitive biases (mount / network / architecture model) |
+| **`复现路线与垫片设计.md`** | **engineering concept: reproduction roadmap + shim design + high-performance design** (Chinese) |
+| `P1_归档_结构性观测.md` | archive of P1 (host root) **structural** observations from the early root-enabled comparison carrier (Chinese) |
+| `假设验证_共享mm证伪.md` | hypothesis—criterion—falsification record for an external AI's "shared mm_struct / signal isolation" model (Chinese) |
+| `重新取证报告_2026-09-23.md` | full record of this round of dual-device controlled experiments |
+| `取证_2026-09-23/` | raw evidence archive (mount tables, filesystems, IPC, etc.) |
 
 ---
 

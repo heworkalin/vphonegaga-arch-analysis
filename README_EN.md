@@ -1,160 +1,210 @@
-# VPhoneGaGa 3.4.0 — Architecture Forensics Report
+# VPhoneGaGa 3.4.0 — Low-Level Architecture Forensics Report
 
 | Item | Content |
 |---|---|
-| Report version | **v1.0** (standard release) |
-| Companion document | [`ARCHITECTURE.md`](ARCHITECTURE.md) — component-level architecture, measured boot timeline, open-source reproducibility assessment (Chinese) |
+| Report version | **v2.0** (dual-device controlled-experiment revision) |
+| Previous version | v1.1 (deterministic-layering revision) |
+| Companion document | [`ARCHITECTURE.md`](ARCHITECTURE.md) — component-level architecture · measured boot timeline · open-source reproducibility assessment |
 | Target | `com.vphonegaga.titan` **3.4.0** (versionCode 3688) |
-| Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) |
-| Carriers | 2 host devices + an internal shell inside one guest VM instance |
-| Permission tiers | Host adbd (unrooted) · Host root (comparison device only) · Guest-internal shell |
-| **AI assistance** | **pi.dev (deepseek-v4-flash)** |
+| Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) + **dual-device controlled experiments** |
+| Carriers | 1 host device (OnePlus PJE110) + its built-in Android 10 guest instance |
+| Permission tiers | **P0** host adbd (unrooted) · **P1** host root (**early comparison carrier only**) · **P2** guest-internal shell (shell / su) |
+| **AI assistance** | **pi.dev (deepseek-v4-flash)** — accessed via API; used for observation planning, command sequencing, and text organization |
 | Evidence grading | Every claim tagged **A / B / C / U**, plus the **permission tier P0/P1/P2** required to obtain it |
+| **Determinacy levels** | **K1** directly proven / **K2** behavior strongly supports an architectural explanation / **K3** black-box indistinguishable |
 
 [中文](./README.md)
-**Based on the Chinese text, some translations may not be timely.**
 
 ---
 
 ## 0. Abstract
 
-This report reconstructs the low-level architecture of the closed-source Android virtualization
-product **VPhoneGaGa 3.4.0**, using **unrooted runtime observation** on the host side combined with
-**a shell obtained from inside the guest VM**.
+This report reconstructs the observable architecture of the closed-source Android virtualization
+product **VPhoneGaGa 3.4.0**, using **unrooted host-side runtime observation** combined with
+**a shell obtained from inside the guest VM**, and — new in this version — **dual-device controlled experiments**.
 
-Five central findings:
+The methodological floor of this report is:
 
-1. **Available observation does not support classifying it as a complete LibOS; it is also not a
-   namespace container.** Guest processes share the host kernel and the same UID (the app's UID),
-   with no PID, UTS, USER, or IPC isolation. The evidence better supports a **hybrid architecture of
-   "host-kernel reuse + syscall projection + userspace filesystem/device abstraction"** (see §5.0).
-2. **Syscall interception is real — but it is not "hijacking SVC trap instructions".** It is a
-   *second, self-installed seccomp filter*. The `Seccomp_filters` field in `/proc/<pid>/status`
-   provides layered proof: host app processes carry **1** filter; all **85** guest processes
-   carry **2**.
-3. **`/proc` is fabricated wholesale.** With a guest-internal shell, it is possible to read the
-   *same process* from both sides and obtain two contradictory self-descriptions. The guest
-   reports `uid=0`, full capabilities, `Seccomp: 0`, kernel 4.14.42, Cortex-A53, 4 GB RAM. The
-   host kernel reports `uid=10383`, `CapEff=0`, `Seccomp: 2`, kernel 5.15.167,
-   Snapdragon 8 Gen 2, 14.8 GB RAM.
-4. **Guest root is a Magisk 26.0 stack running inside the app's UID.** The host
-   device has **no usable root whatsoever** (there is not even a `su` binary). The guest's
-   `magiskd / lspd / zygiskd64 / zygiskd32` all have the **virtual kernel as their real parent** on the
-   host side (the parent shown inside the guest is a *reconstructed* logical tree — see
-   ARCHITECTURE.md §1.3), and all run under host UID 10383 with zero capabilities.
-5. **Its technical positioning is closer to "a syscall projection and device-emulation layer"
-   than to "a userspace kernel reimplementation".** Request handling falls behaviourally into three
-   paths (see **§5.0**): **B synthesis** (identity and hardware-info reads — `getuid`/`capget`/`/proc/*`;
-   never enters the kernel; measured), **C redirection** (filesystem requests — path rewritten, then a
-   genuine host-kernel mmap; measured), and **A passthrough** (everything else, handed verbatim to
-   the host kernel; architecturally inferred). In one sentence: **it did not build a kernel — it
-   acted one out.**
+> **Externally observable behavior can constrain internal architecture, but usually cannot uniquely determine it.**
+>
+> The only way to break that limit is a **controlled experiment**: run the same test payload *inside*
+> the target environment, collect its own return values, and compare them item by item against a
+> real kernel. **The differences are direct evidence of the projection layer.**
 
-**Scope limitation**: this report covers processes, scheduling, syscalls, filesystems, storage
-formats, and `/proc` projection only. **It does not cover networking** — no conclusions are drawn
-about the guest's network implementation.
+Conclusions are therefore split into three levels:
+
+| Level | Meaning | Permitted phrasing |
+|---|---|---|
+| **K1 · Directly proven** | Semantic facts provable from measured output (including controlled experiments) | "observed / reproducible / directly proven" |
+| **K2 · Behavior strongly supports** | Candidate architecture model that fits the observations well | "best supported by current evidence / behavior strongly matches / candidate model" |
+| **K3 · Black-box indistinguishable** | Internal implementation paths that external black-box experiments cannot uniquely decide | "cannot distinguish / cannot uniquely determine / still a candidate" |
+
+Eight central findings:
+
+1. **A syscall projection layer really exists — but it is not "hijacking SVC trap instructions"; it is a self-installed second seccomp filter.** The `Seccomp_filters` field in `/proc/<pid>/status` gives layered proof: host app processes carry **1** filter; all guest processes carry **2**. **K1.**
+
+2. **`/proc` and identity-class syscalls are projected wholesale.** The same process gives two contradictory self-descriptions: the guest reports `uid=0` / full capabilities / `Seccomp: 0` / kernel 4.14.42 / Cortex-A53 / 4 GB RAM. The host kernel reports `uid=10383` / `CapEff=0` / `Seccomp: 2` / kernel 5.15.167 / Snapdragon 8 Gen 2 / 14.8 GB RAM. **K1.**
+
+3. **Mount subsystem: the guest's permission model is inconsistent with the Linux permission model, and its `mount()` result cannot be explained by "the host kernel executing the same call under Linux permission rules".** Measured: inside the guest **any uid (including 10000 / 10123) can successfully `mount(tmpfs)`**, which a real Linux kernel cannot allow; and `mount` is open to all uids while `umount` is root-only (asymmetric). The model best fitting these facts is an **independent userspace mount-semantics handler** in the guest (K2), bounded by a `/proc/filesystems` whitelist; the host mount table never changes (K1). A "userspace layer forwards to another host interface" chain cannot be excluded (K3).
+
+4. **Networking is a hybrid (data-plane / control-plane / info-plane conclusions differ).** A listening port created inside the guest appears in host `/proc/net/tcp` → **a real socket object exists in the host kernel (K1)**; `setsockopt(IP_RECVTTL/IP_PKTINFO/IP_RETOPTS)` succeeds on the host but returns `EINVAL` in the guest → **the control plane is intercepted by a userspace layer (K1)**; the guest's internal `/proc/net/tcp` is empty → **the info plane is projected (K1)**. The data-plane processing location is a candidate model (K2); whether userspace processing is layered on top cannot be decided (K3).
+
+5. **Guest root is a Magisk 26.0 stack running inside the app UID.** The host has no usable root path; the guest's `magiskd / lspd / zygiskd64 / zygiskd32` have the **virtual kernel as their real host-side parent**; the parent shown inside the guest is a **reconstructed** logical tree. **K1 observation + K3 mechanism.**
+
+6. **The storage layer is a private, plaintext, memory-mappable container.** The magic family `[REDACTED]` (data) / `[REDACTED]` (superblock) / `[REDACTED]` (volume-group root) is a wrapper over the 7-Zip family; `readonly.bin` is plaintext and directly mmap-able; `root/block.img` is a structurally valid Android boot image. **K1 observation + K2 interpretation.**
+
+7. **It is a "syscall projection and device-emulation layer" running inside an app UID, with seccomp as its interception boundary and userspace data models maintaining OS semantics.** Request handling falls — in externally observable behavior — into three **semantic paths**: **A host-capability reuse / passthrough**, **B synthesis / projection**, **C redirection / virtual filesystem**. These describe **externally observable processing results**, not three confirmed internal implementation branches. **K2 + K3.**
+
+8. **This report treats no internal implementation path as proven.** For networking, filesystems, and syscall handling, candidate models are built from controlled-experiment results, clearly separating K1 results from K3 internal mechanisms.
+
+In one sentence:
+
+> Externally, it *acts out* a kernel; controlled experiments prove that its **identity, system info, mounts, and network control plane are indeed decided by userspace code**,
+> while its **data plane (sockets, mmap, clocks) reuses host-kernel capability**. Which semantics are taken over by userspace and which are passed through has now been divided item by item by controlled experiments.
 
 ---
 
 ## 1. Methodology, Permission Tiers, and Compliance
 
-### 1.1 AI assistance disclosure
+### 1.1 Methodological core: dual-device controlled experiments
+
+The previous version established that "external observation cannot uniquely determine internal
+implementation." This version supplies the **experimental design that breaks that limit**:
+
+> **Run the same self-compiled test payload on both the "real kernel" and the "projection layer",
+> and compare syscall return values item by item.**
+> **Differences are direct evidence of the projection layer; agreement means the path is passed through.**
+
+| Design element | Description |
+|---|---|
+| Test payload | `-nostdlib -static` raw-assembly syscall program (no libc, no dynamic linking, no compiler runtime) |
+| Interference removed | Bypasses libc wrappers and issues `svc #0` directly, so what is observed is kernel/projection behavior, not library behavior |
+| Control group | Host (real Linux 5.15 kernel, shell uid 2000) |
+| Experimental group | Guest (projection layer, shell uid 2000 / su uid 0) |
+| Decision rule | Same UID, same path, same binary, different result ⇒ that semantic is decided by userspace |
+
+This method upgrades several conclusions previously labeled **U (undetermined)** to **K1 (directly proven)**.
+
+### 1.2 AI-assistance disclosure
 
 | Item | Detail |
 |---|---|
-| AI interface | **pi.dev** |
+| AI interface | **pi.dev** (accessed via API) |
 | Model | **deepseek-v4-flash** |
 | Scope of involvement | Observation planning, command sequencing, raw-output organization, cross-checking, conclusion drafting, report writing, and EN/CN localization |
 | Not involved | Every command was executed on real hardware; every output is a genuine terminal echo, not AI-generated or inferred |
 
-**Risk that must be stated**: AI-assisted analysis produces errors.
-The **two misjudgments** listed in §6 "Corrections" were both produced by this report's
-AI-assisted analysis and were corrected after subsequent measurement:
+**Risk that must be stated**: AI-assisted analysis produces errors. The misjudgments listed in
+§7 "Corrections" were produced by this report's AI-assisted analysis and corrected after subsequent
+measurement. They are listed not as a disclaimer but as a warning:
+**this report's credibility comes from the reproducible commands in §9, the controlled-experiment
+design in §1.1, and the determinacy layering in §0 — not from anyone's authority.**
 
-1. It was concluded that "`[REDACTED]` images have no plaintext on disk and must be decrypted in memory"
-   — reading the file at the mapped offsets yielded plaintext ELF and ARM64 instructions, so the
-   conclusion was overturned.
-2. It was concluded that "the guest tree's `cpuset` claim is refuted" — a controlled experiment
-   showed the guest tree does indeed remain in `top-app`, and the report corrected itself.
-
-These two entries are listed not as a disclaimer but as a warning to the reader:
-**this report's credibility comes from the reproducible commands in §8, not from anyone's
-authority.**
-
-### 1.2 Permission tiers (used throughout)
-
-All observations are strictly separated by three permission tiers. Where a conclusion is verified
-at multiple tiers, the **lowest tier** determines its grade.
+### 1.3 Permission tiers (used throughout)
 
 | Tier | Code | Identity | How obtained | Availability |
 |---|---|---|---|---|
-| Host adbd (**unrooted**) | **P0** | `uid=2000(shell)`, `context=u:r:shell:s0` | `adb shell` | **Both** carriers |
-| Host root | **P1** | `uid=0(root)` | `su -c` (**comparison device B only**, Magisk Alpha) | Comparison carrier only |
-| Guest-internal shell | **P2** | guest `uid=2000` → `su` → guest `uid=0` | `adb connect 127.0.0.1:6556` | Primary carrier's guest only |
+| Host adbd (**unrooted**) | **P0** | `uid=2000(shell)`, `context=u:r:shell:s0` | `adb connect 127.0.0.1:5555` | Host |
+| Host root | **P1** | `uid=0(root)` | `su -c` (**early comparison carrier only**, Magisk Alpha) | Early comparison carrier |
+| Guest-internal shell | **P2** | guest `uid=2000` → `su` → guest `uid=0` | `adb connect 127.0.0.1:6556` | Guest instance |
 
-> **Important**: primary carrier Device A **has no P1 tier at all** (no `su`, no magiskd).
-> Therefore **every observation requiring P1 was obtained only on comparison Device B**, and each
-> such conclusion is annotated accordingly.
+> **Note**: the primary host carrier **has no P1 tier** (no `su`, no magiskd).
+> **But the P1 observations are archived in full and retained** (see §2.2, §4.2, §4.4, §4.9, §4.13):
+> `/proc/<pid>/{ns,maps,fd}`, `[REDACTED]`/`strings` metadata for `libloader64.so` /
+> `libuserkernel64.so` / `libp7zip.so`, and the storage-container format were all obtained on the
+> early root-enabled comparison carrier and are **kept, not deleted** in this version.
+> This version's core increment (controlled experiments on mounts / networking / system-info projection)
+> is entirely obtainable at **P0 + P2**.
 
-### 1.3 Actual permission boundaries per tier (measured)
+### 1.4 Actual permission boundaries per tier (measured)
 
-| Observation target | P0 (unrooted) | P1 (root) | P2 (inside guest) |
+| Observation target | P0 (unrooted host) | P1 (host root) | P2 (inside guest) |
 |---|---|---|---|
 | `ps -A -o PID,PPID,USER,NAME` | ✅ | ✅ | ✅ |
-| `/proc/<pid>/status` (Name/PPid/Uid/Gid/CapEff/CapPrm/Seccomp/Seccomp_filters/NoNewPrivs/TracerPid/NSpid) | ✅ | ✅ | ✅ |
-| `/proc/<pid>/cgroup` | ✅ | ✅ | ✅ |
-| `/proc/<pid>/oom_score_adj` | ✅ | ✅ | ✅ |
-| `/proc/<pid>/cmdline` | ✅ | ✅ | ✅ |
+| `/proc/<pid>/status` (incl. `Seccomp` / `Seccomp_filters` / `CapEff` / `TracerPid`) | ✅ | ✅ | ✅ |
+| `/proc/<pid>/{cgroup,oom_score_adj,cmdline}` | ✅ | ✅ | ✅ |
 | `/proc/net/unix` (socket name enumeration) | ✅ | ✅ | ✅ |
+| `/proc/{mounts,cpuinfo,meminfo}` | ✅ | ✅ | ✅ |
 | `dumpsys` / `pm` / `getprop` | ✅ | ✅ | ✅ |
+| `/proc/version`, `/proc/uptime` (host side) | ❌ DENIED | ✅ | ✅ |
 | **`readlink /proc/<pid>/exe`** | ❌ | ✅ | ✅ |
 | **`/proc/<pid>/ns/` (namespaces)** | ❌ DENIED | ✅ | ✅ |
-| **`/proc/<pid>/maps` (memory mappings)** | ❌ DENIED | ✅ | ✅ |
-| **`/proc/<pid>/fd/` (file descriptors)** | ❌ DENIED | ✅ | ✅ |
-| **`/proc/<pid>/environ`** | ❌ DENIED | ✅ | ✅ |
-| **`/data/data/<pkg>/` (private data dir, container files)** | ❌ DENIED | ✅ | — |
-| **`/data/app/*/<pkg>*/lib/arm64/` (APK native libs; the `[REDACTED]`/`strings` targets)** | ❌ DENIED | ✅ | — |
+| **`/proc/<pid>/{maps,fd,environ}`** | ❌ DENIED | ✅ | ✅ |
+| **`/data/data/com.vphonegaga.titan/` (private data dir)** | ❌ DENIED | ✅ | — |
+| **`/data/app/*/<pkg>*/lib/arm64/` (APK native libs)** | ❌ DENIED | ✅ | — |
+| **Execute a custom binary inside the guest** | — | — | ✅ (`/data/local/tmp`) |
 
-### 1.4 Techniques used
+### 1.5 Techniques used
 
 | Area | Technique | Tier |
 |---|---|---|
 | Process & scheduling | `ps`, `/proc/<pid>/{status,cgroup,oom_score_adj,cmdline}` | P0 |
-| Kernel state fields | `Seccomp` / `Seccomp_filters` / `CapEff` / `NoNewPrivs` / `TracerPid` / `NSpid` | P0 |
+| Kernel state fields | `Seccomp` / `Seccomp_filters` / `CapEff` / `NoNewPrivs` / `TracerPid` | P0 |
 | IPC name enumeration | `/proc/net/unix` | P0 |
+| **Controlled experiments** | **Self-compiled raw-syscall test programs (`-nostdlib -static`), run on both sides** | P0 + P2 |
+| Mount capability testing | `mount` / `umount` syscalls + errno recording | P2 |
+| Namespaces & memory mappings | `/proc/<pid>/{ns,maps,fd}` | P1 |
 | APK component metadata | `[REDACTED] -lW / -dW / --[REDACTED]`, `strings`, `od` | P1 |
-| Storage container format | Hex dump of file headers (`od`), magic comparison, image header decoding | P1 |
-| Memory & descriptors | `/proc/<pid>/{maps,fd,ns}` | P1 |
+| Storage container format | Hex dump of headers (`od`), magic comparison, image-header decoding | P1 |
 | Guest-internal view | The guest's own adbd (`127.0.0.1:6556`) shell + `su` | P2 |
 
-### 1.5 Techniques explicitly *not* used
+### 1.6 Techniques explicitly *not* used
 
 No disassembly of any SO/DEX. No decompilation. No IDA / Ghidra / Frida / Xposed.
 No parsing of ELF instructions inside `readonly.bin`. No attempt to extract, decrypt, or repack any
 image. **No packet capture, routing, or traffic analysis of any kind.**
 
-### 1.6 Compliance
+### 1.7 Compliance
 
 - All observation was performed on **owned devices and an owned, licensed copy**.
 - This report describes **what was observed**, never **how to circumvent, patch, or extract**.
-- The report contains **no** steps, keys, or offset tables usable to defeat the product's
-  protection mechanisms.
+- The report contains **no** steps, keys, or offset tables usable to defeat the product's protection.
 - This constitutes **architecture analysis and interoperability research**, not cracking.
 
-### 1.7 Evidence grading
+### 1.8 Evidence grading and determinacy levels
 
 | Grade | Meaning |
 |---|---|
 | **A** | Reproducible without root (**P0-reachable**) |
-| **B** | Requires root (**P1-reachable**) |
+| **B** | Requires host root (**P1-reachable**; archived from the early comparison carrier) |
 | **C** | Requires guest-internal shell (**P2-reachable**) |
 | **U** | **Undetermined** with current instrumentation |
+
+| Determinacy level | Meaning |
+|---|---|
+| **K1** | Directly proven: semantic facts provable from measured output (incl. controlled experiments) |
+| **K2** | Behavior strongly supports a candidate architecture model, but it is not the only implementation |
+| **K3** | Black-box indistinguishable: internal implementation paths external behavior cannot uniquely decide |
+
+> **Principle**: the closer a conclusion is to "internal mechanism", the lower its determinacy.
+> Phrasings such as "reuses the host kernel", "userspace proxy", "own implementation" are treated
+> as K2/K3 unless explicitly marked K1.
+
+#### 1.8.1 Standard sentence patterns (used throughout)
+
+To avoid writing "result" as "implementation", the report uniformly uses the following patterns.
+**K1 describes only the observable fact itself, never an internal implementation.**
+
+| Level | Pattern | Example |
+|---|---|---|
+| **K1** | **The observable fact is X.** | "Inside the guest, uid 10000 can successfully `mount(tmpfs)`." |
+| **K2** | **The architecture model best fitting X is Y.** | "The model best fitting that difference is an independent userspace mount-semantics handler." |
+| **K3** | **All of the following can explain X: Y1 / Y2 / Y3. Current experiments cannot tell them apart.** | "A userspace-only mount table / userspace handling then forwarding to another host interface / a hybrid — all three explain it; indistinguishable." |
+
+**The narrowing principle** (must be followed):
+
+| May be asserted as K1 | Must NOT be asserted as K1 (downgrade to K2/K3) |
+|---|---|
+| guest `mount()` and host `mount()` **return different results** | guest `mount()` **is implemented by `libuserkernel64.so`** |
+| a corresponding socket object **exists** in the host kernel | the socket data plane **is definitely handled directly by the host TCP/IP stack** |
+| the host kernel **refuses** the call while the guest **accepts** it | the guest **never calls the host kernel at all** |
+| the guest `/proc` output **systematically differs** from host truth | the guest `/proc` **is synthesized by some hooked function** |
 
 ---
 
 ## 2. Test Devices and Environments
 
-### 2.1 Device A — primary carrier (used to test "no host root required")
+### 2.1 Host device (primary carrier)
 
 | Item | Observed value | Tier |
 |---|---|---|
@@ -162,75 +212,60 @@ image. **No packet capture, routing, or traffic analysis of any kind.**
 | SoC | Qualcomm **SM8550** (Snapdragon 8 Gen 2, codename `KALAMA`) | P0 |
 | CPU | 8 cores: 3×`0xd46` (Cortex-A510) / 2×`0xd47` (A715) / 2×`0xd4d` (A710) / 1×`0xd4e` (X3) | P0 |
 | RAM | 15,496,684 kB ≈ **14.8 GiB** | P0 |
-| Storage | 933 GB (403 GB used) | P0 |
 | OS | **ColorOS/OxygenOS 15.0.0.870(CN01)**, Android **15** / SDK **35** | P0 |
-| Fingerprint | `OnePlus/PJE110/OP5CF9L1:15/TP1A.220905.001/U.1d94395_275952_27eb03:user/release-keys` | P0 |
-| Build date | 2025-09-26 | P0 |
 | Kernel | `5.15.167-android13-8-o-01144-gdc8278c1c5f9` | P0 |
 | Integrity | `ro.build.flavor=qssi-user`, `type=user`, `tags=release-keys`, **bootloader locked**, `verifiedbootstate=green` | P0 |
 | **Root status** | **No usable root**: `command -v su` fails, `/system/bin/su` absent, no magiskd, no root processes | P0 |
-| Residual traces | **KernelSU manager v3.3.0 installed**; `/data/adb` exists but is unreadable ⇒ **not a "never-rooted" device** | P0 |
 
-> This is the report's **primary carrier**. Its value lies in the fact that the guest's Magisk /
-> LSPosed / Zygisk appeared **while the host had no usable root path at all**. It also
-> **provides no P1 tier**, so every root-requiring observation depends on Device B.
+### 2.2 Comparison carrier — P1 (host root) source 【archived】
 
-### 2.2 Device B — comparison carrier (the only P1 source)
+> This version's core increment was done at P0 + P2, but **the P1 observations obtained earlier on a
+> root-enabled comparison carrier are archived in full and retained**, not deleted because the carrier
+> is not present. Below is that carrier's qualification record.
 
 | Item | Observed value | Tier |
 |---|---|---|
 | Brand / model | Redmi / **Redmi K30 5G** (`picasso`) | P0 |
 | SoC | Qualcomm **SM7250** (Snapdragon 765G) | P0 |
-| CPU | 8 cores: 2×`0x804` (Cortex-A76) / 6×`0x805` (Cortex-A55) | P0 |
-| RAM | 7,661,616 kB ≈ **7.3 GiB** | P0 |
-| OS | **LineageOS 22.2 UNOFFICIAL** (Android **15** / SDK **35**) | P0 |
+| OS | **LineageOS 22.2 UNOFFICIAL** (Android 15 / SDK 35) | P0 |
 | Build | `lineage_picasso-userdebug 15 BP1A.250505.005 eng.cnmrli test-keys` | P0 |
-| Build date | 2025-09-28 (**unofficial; builder field is a personal handle**) | P0 |
-| Kernel | `4.19.314-Hanabi-2.2-g6e7223ac503a-dirty` | P0 |
-| **Root status** | **Magisk Alpha running**: package `io.github.vvb2060.magisk` v`c3db2e36-alpha`; `magiskd` (uid 0) alive; Zygisk module `playintegrityfix` loaded | P0 / **P1 source** |
-| Property reliability | **Unreliable**: `ro.build.tags=release-keys` contradicts `test-keys` in display.id; `type=user` contradicts the `userdebug` flavor; `verifiedbootstate=green` + `flash.locked=1` contradicts "unlocked and rooted" ⇒ **Magisk property resets are in effect** | P0 |
+| **Root status** | **Magisk Alpha running**: package `io.github.vvb2060.magisk` v`c3db2e36-alpha`; `magiskd` (uid 0) alive | P0 obs / **P1 source** |
+| Property reliability | **Unreliable**: `release-keys` contradicts `test-keys`, `user` contradicts `userdebug` ⇒ **Magisk property resets active**, `getprop`-based conclusions not trusted | P0 |
 
-> **This device cannot be used to validate the "no host root required" claim.** It only supplies
-> the P1 tier and serves as a control. Its `getprop` output is untrustworthy.
+> This carrier **cannot validate "no host root required"**; it only supplies the P1 tier and a control.
+> Conclusions from it are tagged 【P1】 below.
 
-### 2.3 Guest VM instance — running inside Device A (P2 source)
+### 2.3 Guest instance — running inside the host (P2 source)
 
 A guest-internal shell was obtained through the guest's own adbd (`adb connect 127.0.0.1:6556`).
 Its ADB banner advertises `product:cancro model:Nexus device:android`.
 
-| Item | Guest self-description | Host kernel reality | Tier |
+| Item | Guest self-description | Host-kernel reality | Tier |
 |---|---|---|---|
-| OS version | Android **10** / SDK **29** | Android 15 / SDK 35 | P2 / P0 |
+| OS version | Android **10** / SDK **29** | Host Android 15 / SDK 35 | P2 / P0 |
 | Fingerprint | `samsung/cancro/android:10/KOT49H/eng.build.20220315.203416:user/release-keys` | `OnePlus/PJE110/…:15/…` | P2 / P0 |
-| `ro.build.id` | `KOT49H` (**the Android 4.4 build ID**, deliberately mismatched) | — | P2 |
 | Model | `model=Nexus`, `brand=samsung`, `device=android`, `name=cancro` | PJE110 / OnePlus | P2 / P0 |
-| Build date | 2022-03-15 20:31:13 PDT | 2025-09-26 | P2 |
-| Security patch | 2019-09-05 | — | P2 |
 | Kernel | `4.14.42-titan (titan@ubuntu) gcc 4.8.4 #34 SMP PREEMPT 2019-11-09` | `5.15.167-android13-8-…` | P2 / P0 |
 | CPU | Cortex-A53 (`0x801`) × 8 | Snapdragon 8 Gen 2 (`0xd46/0xd47/0xd4d/0xd4e`) | P2 / P0 |
-| Memory | 4,063,232 kB ≈ **3.9 GB** | 15,496,684 kB ≈ **14.8 GB** | P2 / P0 |
-| `/data` size | 933 GB | 933 GB (**not disguised — leaks**) | P2 |
+| RAM | 4,063,232 kB ≈ **3.9 GB** | 15,496,684 kB ≈ **14.8 GB** | P2 / P0 |
+| `/data` size | 933 GB | 933 GB (**not disguised — leaked**) | P2 |
 | Root | **Magisk 26.0** (`26.0:MAGISK:R` / `26000`) | uid 10383 / CapEff 0 | P2 / P0 |
-| Packages | 141 installed (no GApps) | — | P2 |
-| System binaries | 379 in `/system/bin` | — | P2 |
-| Serial | `[REDACTED]` (hard-coded) | — | P2 |
+| Process count | ~85–100 inside the guest | ~98–101 `titan*` on the host | P2 / P0 |
 
-> ⚠️ **This guest instance is not factory-fresh**: `/data/adb/start.sh` is owned by `u0_a100`,
-> a 1.7 MB `su_arm64` is present, and `/data/adb/modules/zygisk_lsposed` exists.
-> Any statement that "the guest ships with LSPosed" must note that this was user-installed inside
-> the instance.
+> ⚠️ **This guest instance may not be factory-fresh**: modules may have been installed inside it.
+> Any reference to "the guest ships LSPosed" must state this.
 
-### 2.4 Environmental confounders (disclosed)
+### 2.4 Environmental confounders (must be stated)
 
-| Confounder | Effect | Handling |
+| Confounder | Impact | Handling |
 |---|---|---|
-| **KernelSU manager + `/data/adb`** (Device A) | Shows the device was previously rooted | Disclosed; but **no usable root path exists now** |
-| **Magisk Alpha + Zygisk module** (Device B) | Properties reset; root modules can modify cgroups freely | Demoted to control; its cgroup data contradicts Device A, so Device A prevails |
-| **User-installed LSPosed module inside the guest** | Guest is not a pristine instance | Disclosed |
+| KernelSU manager previously installed; `/data/adb` exists | Shows the device had been root-attempted | Stated; **but currently no usable root path** |
+| A global VPN-type app may run on the host | Affects interpretation of egress paths | Network conclusions are limited to the **socket control plane**, not routing |
+| Post-installed modules may exist inside the guest | Guest is not a clean instance | Stated |
 
 ---
 
-## 3. Software Versions
+## 3. Software Version
 
 | Item | Value | Tier |
 |---|---|---|
@@ -239,279 +274,394 @@ Its ADB banner advertises `product:cancro model:Nexus device:android`.
 | Version code | **3688** | P0 |
 | minSdkVersion | **21** | P0 |
 | **targetSdkVersion** | **29** (Android 10) | P0 |
-| Instance directory | `files/instance1/androidfs_10.0.0/` | P1 |
-| Device A / B version | **Identical** (3.4.0 / 3688) | P0 |
+| Instance dir | `files/instance1/androidfs_10.0.0/` | P2 |
 
-> **`targetSdk=29` is one important compatibility condition of the current implementation route.**
-> Pinning targetSdk to Android 10 substantially reduces friction from Android 11+ scoped storage,
-> package visibility, background execution, and process-count restrictions, and considerably lowers
-> the framework constraints on hosting a complete Android 10 userspace inside an app sandbox.
+> **`targetSdk=29` is one important compatibility condition of the current implementation route**:
+> pinning targetSdk at Android 10 significantly reduces friction from Android 11+ scoped storage,
+> package visibility, background-execution, and process-count limits.
 >
-> ⚠️ **However, whether it is a *necessary* condition for the architecture has not been verified by
-> a controlled experiment** (targetSdk=30/31 behaviour was not tested). **Grade U.**
+> ⚠️ **But "it is a necessary condition for the architecture" has not been verified by controlled
+> experiment** (targetSdk=30/31 untested). Marked **U / K3**.
 
-**Guest image**: an Android 10 system built 2022-03-15 (`eng.build.20220315.203416`), with a
-security patch level of 2019-09-05 — consistent with a genuine Android Q build. 【P2】
+**Guest image**: Android 10, built 2022-03-15, security patch level 2019-09-05. 【P2】
 
 ---
 
 ## 4. Observations
 
-> Every observation is tagged with its **evidence grade** and the **permission tier** required.
+> Every observation is tagged with an **evidence grade** and the **permission tier** required.
+> Interpretations about internal mechanisms are additionally tagged **K1 / K2 / K3**.
 
-### 4.1 Process topology — **Grade A / P0**
+### 4.1 Process topology — **Grade A / P0 / K1**
 
-Under the host `zygote64` (PID 1436 on Device A):
+Measured on the host side:
 
-```
+```text
 host zygote64
-├── com.vphonegaga.titan              uid 10383   cpuset:/foreground
-└── com.vphonegaga.titan:instance1    uid 10383   cpuset:/top-app
-    └── titan64_0:kernel              ← guest virtual kernel (64-bit)
-        ├── titan32_0:kernel          ← guest virtual kernel (32-bit)
-        ├── titan64_1:init            ← guest init
-        │   ├── titan64_59:netd / 60:zygote64 / 105:surfaceflinger
-        │   ├── titan64_107:adbd      ← guest runs a full adbd
-        │   ├── titan64_164:su
-        │   └── titan64_249:system_server
-        ├── titan64_43:magiskd        ← parent is the virtual kernel, **not init**
-        ├── titan64_56:lspd           ← LSPosed daemon, parent = virtual kernel
-        ├── titan64_259:zygiskd64     ← parent = virtual kernel
-        └── titan32_506:zygiskd32     ← parent = the **32-bit** virtual kernel
+├── com.vphonegaga.titan              uid u0_a383 (10383)   cpuset:/foreground
+└── com.vphonegaga.titan:instance1    uid u0_a383 (10383)   cpuset:/foreground
+    └── titan64_0:kernel              ← guest virtual kernel (64-bit), Name=libloader64.so
+        ├── titan32_0:kernel          ← guest virtual kernel (32-bit), forked by the 64-bit one
+        ├── titan64_1:init            ← guest init (real parent = virtual kernel)
+        │   ├── titan64_59:netd / 62:zygote64 / 111:surfaceflinger
+        │   ├── titan64_119:adbd      ← guest's own full adbd (listening on 6556)
+        │   ├── titan64_185:su
+        │   └── titan64_199:system_server
+        ├── titan64_43:magiskd        ← real host parent = virtual kernel, **not init**
+        ├── titan64_56:lspd           ← real host parent = virtual kernel
+        ├── titan64_229:zygiskd64     ← real host parent = virtual kernel
+        └── titan32_504:zygiskd32     ← real host parent = **32-bit virtual kernel**
 ```
 
-**Scale**: **85** guest processes (snapshot; 87 on comparison Device B). 100 PID directories are
-visible from inside the guest. 【P0/P2】
+**Naming rule**: `titan{32,64}_<guest vpid>:<guest process name>`. 【P0 + P2 cross-check】
 
-**Naming scheme**: `titan{32,64}_<guest virtual PID>:<guest process name>`. That virtual PID
-corresponds exactly to what `ps` reports inside the guest (see §5.2). 【cross-verified P0 + P2】
+**One topology error corrected**: `com.vphonegaga.titan` and `:instance1` have the **same** PPid
+(both point to host zygote); they are **siblings**, not parent/child. The virtual kernel's parent is `:instance1`.
 
-**One topological correction**: `com.vphonegaga.titan` and `:instance1` share the **same PPid**
-(host zygote) — they are **siblings**, not parent and child. The virtual kernel's parent is
-`:instance1`.
-
-### 4.2 Privileges and scheduling — **Grade A / P0**
+### 4.2 Privileges and scheduling — **Grade A / P0 / K1 observation + K2 mechanism**
 
 | Observation | Value |
 |---|---|
-| UID of all guest processes | **10383** (app UID, no exceptions) |
+| Host-side UID of all guest processes | **10383** (app UID, no exceptions) |
 | `CapEff` / `CapPrm` of all guest processes | `0000000000000000` |
 | `NoNewPrivs` of all guest processes | `1` |
-| `TracerPid` of all guest processes | **0** (⇒ **ptrace-based interception is ruled out**) |
+| `TracerPid` of all guest processes | **0** (⇒ **ptrace interception route ruled out**) |
 | `Seccomp` of all guest processes | `2` |
-| **`Seccomp_filters` of all guest processes** | **`2`** ← see §4.3 |
-| Namespaces | `/proc/<pid>/ns/` exposes only `cgroup` / `mnt` / `net`; **no `NSpid` field** ⇒ **no PID namespace**, and no UTS / IPC / USER / TIME 【P1】 |
-| Mounts | Guest `mountinfo` is identical to the host app's (152 entries); **no product-specific mount points** ⇒ the "virtual partitions" are **not mounts** 【P1】 |
-| cgroup | The entire guest tree sits in `cpuset:/top-app` while its parent `instance1` sits in `/foreground` |
-| `oom_score_adj` | Entire guest tree `0`; `instance1` is `101` |
+| **`Seccomp_filters`** of all guest processes | **`2`** ← see §4.3 |
+| Namespaces | `/proc/<pid>/ns/` contains only `cgroup` / `mnt` / `net`; **no `NSpid` field** ⇒ **no PID namespace**, and no UTS / IPC / USER / TIME 【**P1**】 |
+| Mounts | Host mount table has **no product-specific mount point**; guest `mountinfo` matches the host app (~152 entries) 【P1】 |
+| cgroup | Whole guest tree in `cpuset:/top-app`; its parent `instance1` in `/foreground` |
+| `oom_score_adj` | `0` for the whole guest tree; `200` for `instance1` |
 
-### 4.3 ★ The second seccomp filter — **Grade A / P0 (core evidence)**
+### 4.3 ★ The second seccomp filter — **Grade A / P0 / K1 (core evidence)**
 
-The `Seccomp_filters` field in `/proc/<pid>/status` provides irrefutable layered evidence:
+The `Seccomp_filters` field in `/proc/<pid>/status` gives irrefutable layered evidence:
 
 | Process | `Seccomp` | **`Seccomp_filters`** |
 |---|---|---|
-| Host `init` / `zygote64` / `netd` | 0 | 0 |
-| Host `systemui` | 2 | **1** |
+| Host `init` / `zygote64` | 0 | 0 |
 | `com.vphonegaga.titan` | 2 | **1** |
 | `com.vphonegaga.titan:instance1` | 2 | **1** |
-| **`titan64_0:kernel`** | 2 | **2** ← the transition point |
-| **All 85 guest processes** | 2 | **2** (100%) |
+| **`titan64_0:kernel`** | 2 | **2** ← transition point |
+| **`titan32_0:kernel`** | 2 | **2** |
+| **all guest processes** | 2 | **2** (100%) |
 
 **Interpretation**:
-- Android installs exactly one seccomp filter on every app process (installed by zygote), so the
-  host side is uniformly 1.
-- seccomp filters **can only be stacked, never removed**. The 1→2 transition occurs *after*
-  `instance1` forks the virtual kernel and *before* guest code runs.
-- Therefore **the evidence best supports the explanation that the second filter was installed by the
-  guest virtual kernel during bootstrap and inherited by its descendants**; however, **the specific
-  installing caller has not been directly observed**. Other theoretical paths cannot be fully ruled
-  out (e.g. `instance1` installing it within a very short window, a loader/initialisation component
-  installing it, or an as-yet-unlocated init thread doing so) — they merely fit the overall
-  architecture far less well.
-- Cross-check (P1): `libuserkernel64.so`'s string table contains `PR_SET_SECCOMP`,
-  `PR_GET_SECCOMP`, `PTRACE_SEIZE`, `PTRACE_GETREGS`, and similar constants.
-- Device A has **no root, no Magisk, and no Zygisk**, so this layer cannot originate from the host.
 
-⇒ **VPhoneGaGa's userspace syscall interception is real, implemented at the seccomp layer.**
-(The exact policy — `RET_USER_NOTIF` / `RET_TRACE` / `RET_ERRNO` — requires reading the BPF
-program: **Grade U**.)
+- Android force-installs one seccomp filter per app process (installed by zygote), so the host side is always 1 layer.
+- seccomp filters **can only be stacked, never removed**. The 1→2 jump happens after `:instance1` forks
+  the virtual kernel and before guest code runs.
+- ⇒ **Current evidence best supports "the 2nd layer is installed by the guest virtual kernel during
+  bootstrap and inherited by all descendants"**; **the exact installing caller has not been directly observed**. **K2.**
+- The host device **has no root, no Magisk, no Zygisk**, so this layer cannot come from the host.
 
-### 4.4 ★ Wholesale `/proc` fabrication — **Grade C / P2 versus P0**
+⇒ **VPhoneGaGa's userspace syscall projection really exists; the implementation layer is seccomp.**
+(The exact strategy — `RET_USER_NOTIF` / `RET_TRACE` / `RET_ERRNO` — requires reading the BPF program: **U / K3**.)
 
-With a guest-internal shell, the *same process* can be read from both sides:
+### 4.4 ★ `/proc` and identity-class syscalls projected wholesale — **Grade C / P2 vs P0 / K1**
 
-| Observation | Guest view (P2) | Host kernel truth (P0) | Verdict |
+With a guest-internal shell, the **same process** can be read from both sides:
+
+| Observation | Guest view (P2) | Host-kernel truth (P0) | Verdict |
 |---|---|---|---|
-| `su -c id` | `uid=0(root) gid=0(root)` | uid **10383** | **fabricated** |
-| `CapEff` / `CapPrm` | `0000003fffffffff` (full set) | `0000000000000000` | **fabricated** |
-| `Seccomp` | **0** | **2** (with 2 filters) | **fabricated** |
-| `NoNewPrivs` | **0** | **1** | **fabricated** |
-| PID space | `init=1`, `magiskd=43`, `zygote64=60`, `system_server=249` | 7098 / 7227 / 7263 / 7957 | **virtual PID mapping** |
-| `/proc` numeric dirs | 100 (max PID 2554) | 300+ on the host | **filtered** |
-| Host real PIDs visible | **No** (6341/6839/7024/7263 all invisible) | — | **filtered** |
-| `/proc/version` | `4.14.42-titan (titan@ubuntu) gcc 4.8.4 …2019` | `5.15.167-android13-8-o-01144` | **fabricated** |
-| `/proc/cpuinfo` | `CPU part: 0x801` (Cortex-A53) × 8 | `0xd46/0xd47/0xd4d/0xd4e` | **fabricated** |
-| `/proc/meminfo` | `4,063,232 kB` | `15,496,684 kB` | **fabricated** |
-| `/proc/uptime` | `386296188` s (**≈ 12.2 years**, and idle > uptime) | `621609.78` s | **fabricated (and broken)** |
-| `/proc/self/maps` | `/system/lib64/libnetd_client.so`, dev `03:08`, ino `3080` | `…/androidfs_10.0.0/system/readonly.bin`, dev `fd:26`, ino `118337` | **path rewritten** |
-| `/proc/self/fd` | `0/1/2 -> sock:[725]` | real socket | **fabricated (malformed)** |
-| `/proc/1/exe` mode | `lr--r--r--` | real procfs is always `lrwxrwxrwx` | **fabrication tell** |
-| `cgroup` | `2:cpu:/apps` / `1:cpuacct:/` (Android 10 layout) | 6 controllers + `/uid_10383/pid_6839` | **fabricated** |
-| `/proc/mounts` | `/dev/block/platform/host/by-name/system` as ext4 | no such mount | **fabricated** |
-| `df /data` | 933 GB | 933 GB | **leaks (not disguised)** |
-| SELinux context | `--  u:object_r:toolbox_exec:s0` (stray `--`) | — | **emulation artifact** |
+| `su -c id` | `uid=0(root) gid=0(root)` | uid **10383** | **projected/fabricated** |
+| `CapEff` / `CapPrm` | `0000003fffffffff` (all caps) | `0000000000000000` | **projected/fabricated** |
+| `Seccomp` | **0** | **2** (two filters) | **projected/fabricated** |
+| `NoNewPrivs` | **0** | **1** | **projected/fabricated** |
+| PID space | `init=1`, `magiskd=43`, `zygote64=62` | 7098 / 7227 / 7263 etc. | **virtual PID mapping** |
+| `/proc` numeric dirs | 134 | 1112 | **filtered** |
+| Real host PIDs visible | **No** | — | **filtered** |
+| `/proc/version` | `4.14.42-titan (titan@ubuntu) gcc 4.8.4 …2019` | `5.15.167-android13-8-o-01144` | **projected/fabricated** |
+| `/proc/cpuinfo` | `CPU part: 0x801` (Cortex-A53) × 8 | `0xd46/0xd47/0xd4d/0xd4e` | **projected/fabricated** |
+| `/proc/meminfo` | `4,063,232 kB` | `15,496,684 kB` | **projected/fabricated** |
+| `/proc/uptime` | ~5.75×10⁸ s (**≈18 years**, idle > uptime) | real value | **projected (broken)** |
+| `/proc/self/maps` | `/system/lib64/libnetd_client.so`, dev `03:08`, ino `3080` | `…/androidfs_10.0.0/system/readonly.bin` | **path rewrite / display-layer projection** |
+| `/proc/self/fd` | `0/1/2 -> sock:[782]` | real socket | **projected (malformed)** |
+| `/proc/1/exe` mode | `lr--r--r--` | real procfs is always `lrwxrwxrwx` | **projection artifact** |
+| `cgroup` | `2:cpu:/apps` / `1:cpuacct:/` (Android 10 layout) | 5 controllers + `/uid_10383/pid_…` | **projected/fabricated** |
+| `/proc/mounts` | `/dev/block/platform/host/by-name/system` ext4 | no corresponding mount | **projected/fabricated** |
+| `df /data` | 933 GB | 933 GB | **leaked (not disguised)** |
+| SELinux context | `--  u:object_r:toolbox_exec:s0` (extra `--`) | — | **emulation artifact** |
 
-**Key insight**: the filter fabricates `Seccomp` as `0` — it intercepts the process's syscalls
-while simultaneously telling that process *"I do not exist."*
+**Key insight**: the filter projects `Seccomp` as `0` — **while intercepting/projecting this process's
+syscalls, it tells the process "I do not exist".**
 
-### 4.5 ★ Self-incriminating fabrication artifacts — **Grade C / P2 (strongest evidence)**
+**P1 reinforcement (archived from the early comparison carrier)**:
+- The host-side fd table contains hundreds of `memfd:titan-tmp-inode-N (deleted)` 【P1】.
+  This only proves **a large number of anonymous/temporary memory objects are related to the userspace
+  virtual-file implementation**; treating them as "the entities of all fake `/proc` files" is
+  **beyond the evidence boundary**. **K2.**
+- The string table of `libuserkernel64.so` contains `PR_SET_SECCOMP` / `PR_GET_SECCOMP` / `PTRACE_SEIZE` /
+  `PTRACE_GETREGS` constants 【P1】, matching a seccomp-installation path.
+- `/proc/<pid>/maps` (P1) shows the guest maps `…/androidfs_10.0.0/system/readonly.bin`,
+  while `/proc/<pid>/fd` contains `memfd:titan-tmp-inode-N`.
 
-**One kernel state, three interfaces, two different answers:**
+> Note: what is directly proven here is "the same process yields different semantic results from the
+> guest and host perspectives". Whether that arises from path-level hook+synthesis, a userspace VFS,
+> seccomp user notification, or a mix is **K3**.
 
-```
+### 4.5 ★ Self-evident breakage of the projection — **Grade C / P2 / K1 (strongest evidence)**
+
+**The same kernel state exposes different answers across interfaces:**
+
+```text
 $ cat /proc/self/mountinfo
-28 26 3:8 / / ro,seclabel,barrier=1 shared:2 - ext4 /dev/block/platform/host/by-name/system rw,seclabel
+28 26 3:8  / / ro,seclabel,barrier=1 shared:2 - ext4 /dev/block/platform/host/by-name/system rw,seclabel
 
 $ cat /proc/mounts
 /dev/block/platform/host/by-name/system / ext4 ro,seclabel,barrier=1 0 0
 
 $ mount
 /dev/block/mtdblock0 on / type ext4 (ro,seclabel,barrier=1)
-                    ^^^^^^^^^^ entirely different device name
+                    ↑↑↑↑↑↑↑↑↑↑ a completely different device name
 ```
 
-Other artifacts:
+Other breakages:
 
-| # | Artifact | Significance |
+| # | Breakage | Note |
 |---|---|---|
-| 1 | `/proc/mounts` and `mount` disagree on the root device | Same state, two answers ⇒ **highly consistent with an interface/path-level projection model** (not direct proof) |
-| 2 | `/proc/uptime` = 386,296,188 s (**12.2 years**), with idle > uptime | Struct assembled incorrectly |
-| 3 | `/proc/self/fd` shows `sock:[725]` | The Linux kernel always prints `socket:[inode]`; the inode is also implausibly small |
-| 4 | `/proc/1/exe` mode is `lr--r--r--` | Real procfs `exe`/`cwd` are always `lrwxrwxrwx` |
-| 5 | Device path `platform/**host**/by-name/system` | Real platforms are named `1d84000.ufshc` etc. **`host` is the product's own naming — self-exposure** |
-| 6 | `/share` mount source literally reads `/storage/emulated/0/Android/data/com.vphonegaga.titan/files/instance1/shared` | **Host path leak** |
-| 7 | `context=--  u:object_r:toolbox_exec:s0` | SELinux emulation assembly artifact |
+| 1 | `/proc/mounts` and `mount` give different device names | two answers for one state ⇒ **matches an interface/path-level projection model** (K2) |
+| 2 | `/proc/uptime` ≈ 5.75×10⁸ s (**18 years**), idle > uptime | struct-assembly error |
+| 3 | `/proc/self/fd` shows `sock:[782]` | the kernel always uses `socket:[inode]` |
+| 4 | `/proc/1/exe` mode `lr--r--r--` | real procfs `exe`/`cwd` is always `lrwxrwxrwx` |
+| 5 | Device path `platform/**host**/by-name/system` | real platforms are `1d84000.ufshc` etc.; **`host` is the product's own naming** |
+| 6 | `/share` mount source shows a host path | **host path leaked**: `/storage/emulated/0/Android/data/com.vphonegaga.titan/files/instance1/shared` |
+| 7 | `/proc/net/dev`: lo/eth0/wlan0 have **identical** byte counts | three interfaces reuse one dataset |
+| 8 | SELinux context `--  u:object_r:toolbox_exec:s0` | emulation-layer artifact |
 
-⇒ **Using the product's own bugs to prove it is fabricating** is stronger than any inference.
+⇒ **Proving the projection with the product's own bugs is stronger than any external inference.**
+But "projection/fabrication" itself is K1; its concrete internal implementation remains K2/K3.
 
-**Implementation model (highly consistent with observation, but not direct proof)**: the real procfs
-is still the host kernel's (otherwise `cat /proc/version` would produce nothing), while
-**`openat` / `read` on specific paths is intercepted by the second seccomp filter**, which returns
-**synthesized content** from memory.
+### 4.6 ★ Mount subsystem — a userspace virtual implementation (guest-side uid sweep) — **Grade C / P2 / K1**
 
-The hundreds of `memfd:titan-tmp-inode-N (deleted)` entries in the host-side fd table 【P1】 only
-establish that **a large number of anonymous/temporary memory objects are associated with a
-userspace virtual-file implementation**. Treating "they are the entities behind every fake `/proc`
-file" as an established fact **exceeds the evidence boundary** — the accurate statement is that the
-phenomenon is **highly consistent with the implementation model above**.
+#### 4.6.1 Guest-side uid sweep (the core experiment of this subsection)
 
-Paths replaced, measured at P2: `/proc/<pid>/{status,cgroup,maps,fd/*,exe}`,
-`/proc/{mounts,self/mountinfo}`, `/proc/{cpuinfo,meminfo,uptime,version}`.
+**Design**: inside the guest, start the test program as root, `setuid` to a target uid, then call
+`mount(tmpfs)`, observing the return value across uids. The program is raw-syscall
+(`-nostdlib -static`); the target path is `/data/local/tmp/mu`.
 
-### 4.6 Peripheral proxy channels `@titan-pipe-*` — **Grade A / P0 (no root needed)**
+| Target uid | actual `getuid()` | `mount(tmpfs)` | `umount` |
+|---|---|---|---|
+| 0 | 0 | ✅ ret=0 | ✅ ret=0 |
+| 1000 | 1000 | ✅ **ret=0** | ❌ EPERM(1) |
+| 2000 | 2000 | ✅ **ret=0** | ❌ EPERM(1) |
+| 10000 | 10000 | ✅ **ret=0** | ❌ EPERM(1) |
+| 10123 | 10123 | ✅ **ret=0** | ❌ EPERM(1) |
 
-`/proc/net/unix` is fully readable as the shell user and exposes the IPC channel names between the
-guest subsystems and the host:
+**Conclusion (K1, observable fact only)**:
+> Inside the guest **any uid (including uid 10000 / 10123) can successfully `mount(tmpfs)`**;
+> yet a real Linux kernel under any conventional configuration **cannot** let uid 10000 mount `tmpfs`
+> (it requires `CAP_SYS_ADMIN`).
+> ⟹ **the guest's `mount()` result cannot be explained by "the host kernel executing the same call
+> under Linux permission rules".**
+>
+> Another K1 fact: **the mount permission is asymmetric** — `mount` is allowed for every uid while
+> `umount` is allowed only for uid 0. That asymmetry itself cannot arise from a single kernel
+> permission model.
 
+**Candidate model (K2)**:
+> The model best fitting the above is an **independent userspace mount-semantics handler** in the
+> guest, whose permission table is defined by userspace code (`mount` open to all uids, `umount` root
+> only) and which maintains a mount tree the host kernel VFS does not hold.
+
+**Indistinguishable items (K3)**:
+> Current experiments **cannot** prove "the host kernel is not involved at all". A chain such as
+> "guest userspace layer → transform → some other host interface → host kernel" remains theoretically
+> possible. What is proven is **that the result cannot be explained by "the host kernel directly
+> executing under Linux permission rules"**, not "zero host-kernel involvement".
+
+#### 4.6.2 Why the "host uid 2000 fails" observation is **not** used as a control (important methodology correction)
+
+> ⚠️ **This subsection replaces earlier wording.** An earlier version treated "host uid 2000 gets
+> `EACCES` vs guest uid 2000 gets `ret=0`" as a decisive controlled experiment. **That control is
+> invalid**, for these reasons:
+
+- The host's uid 2000 getting `EACCES` from `mount()` is the **necessary outcome of standard Linux
+  permission checking** (no `CAP_SYS_ADMIN`), **unrelated to any projection layer**; it cannot serve
+  as evidence that a projection layer exists.
+- It only proves "**the permission models on the two sides differ**", and **not** "the guest's
+  `mount()` cannot be executed by the host kernel directly" — because in that comparison the host
+  kernel **was never allowed to execute** the call.
+- Mistaking a **permission difference** for an **architecture difference** is a classic result
+  confusion.
+
+**No fair host-side control can be constructed in this environment** (measured):
+
+| Control design | Measured result |
+|---|---|
+| Host root (P1) calls `mount()` | **Unavailable**: the primary carrier has no usable root path |
+| Host `unshare -Urm` (user namespace), then `mount()` | **Unavailable**: `unshare: Invalid argument` (kernel/SELinux forbids unprivileged userns) |
+| Host `unshare -m` (mount namespace), then `mount()` | **Unavailable**: `unshare: Operation not permitted` |
+
+⇒ This report **explicitly states**: the host-side `mount` failure is **a reference observation only,
+not projection-layer evidence**. What actually supports the conclusion is the uid sweep in §4.6.1
+plus the four findings below (whitelist / host-invisible / interface mismatch / in-memory state).
+
+#### 4.6.3 Capability boundary = `/proc/filesystems` whitelist
+
+| Guest `/proc/filesystems` | Mount result |
+|---|---|
+| rootfs / proc / tmpfs / devpts / selinuxfs | ✅ ret=0 |
+| socketfs / sdcardfs | ❌ needs special conditions |
+| **anything outside the list** (ext2/3/4, f2fs, btrfs, overlay, squashfs, cgroup2, ramfs, debugfs, tracefs…) | ❌ **EINVAL(22)** |
+
+The host `/proc/filesystems` has 30+ entries; the guest has only 7.
+⇒ **the `mount` implementation checks a hard-coded whitelist.**
+
+#### 4.6.4 Semantic fidelity (partial implementation)
+
+| Feature | Behavior |
+|---|---|
+| `-o ro` | ✅ **truly enforced** (write ⇒ `EROFS`) |
+| `-o remount,rw` | ✅ works |
+| `-o noexec,nosuid,nodev` | ✅ recorded and effective |
+| `-o mode=0755,uid=1000,gid=1000` | ⚠️ **only written into `/proc/mounts` text; the actual dir stays 777 root:root** (not enforced) |
+| Non-existent mount point | ❌ `ENOENT` |
+| `--move` | ❌ `EINVAL` (unimplemented) |
+| `--bind` | ✅ `ret=0` |
+| `df` on virtual mounts | **invisible** (no statfs response) |
+
+#### 4.6.5 Completely invisible on the host (K1)
+
+- After the guest mounts, **host `/proc/mounts` gains nothing**.
+- Host mount table ~194 entries; guest mount table ~48–49 entries, **no overlapping product-specific mount point**.
+- Host-side grep `vphonegaga|instance1|readonly` = **empty**.
+
+**Conclusion**:
+> **"Host mount table shows nothing ⇒ no mount capability" is an invalid black-box inference.**
+> Measured: the guest's `mount()` result **cannot be explained by the host kernel executing the same
+> call under Linux permission rules** (K1); the host kernel mount table does not hold these mounts (K1);
+> the model best fitting the observations is a **userspace mount tree** in the guest (K2); capability
+> is whitelist-bounded and options like `mode/uid/gid` are not enforced (K1).
+
+#### 4.6.6 Valid-evidence list for this section (excluding the invalid control)
+
+The **valid** evidence supporting "mounts are a userspace virtual implementation" comprises 5 items,
+**none of which depend on the "host EACCES" comparison**:
+
+| # | Valid evidence | Where | Level |
+|---|---|---|---|
+| 1 | Inside the guest **any uid (incl. 10000) can successfully `mount(tmpfs)`**, impossible on real Linux | §4.6.1 | K1 |
+| 2 | Mount permission is **asymmetric**: `mount` open to all uids, `umount` root-only | §4.6.1 | K1 |
+| 3 | `/proc/filesystems` whitelist has only 7 entries; anything outside returns `EINVAL`; host has 30+ | §4.6.3 | K1 |
+| 4 | Host mount table never changes; `/proc/mounts` and `mount` give different device names | §4.6.5 / §4.5 | K1 |
+| 5 | `bind mount` broke `/system`; recovery after instance restart ⇒ mount state is **userspace in-memory** | §10.2 | K1 |
+
+> ❌ **Not used as evidence**: the host's uid 2000 `EACCES` (reference only); host `mount ext4`
+> `EACCES` vs guest `EINVAL` (permission vs format — not comparable); `umount` returning `EPERM` on
+> both sides (only proves both refuse, not symmetry). See §4.6.2.
+
+### 4.7 ★ Network subsystem — a hybrid model (controlled experiment) — **Grade C / P2 / K1**
+
+#### 4.7.1 Sockets are real host sockets (K1)
+
+A listening socket was created inside the guest (port 4660 / `0x1234`), then queried on the host:
+
+```text
+host /proc/net/tcp:
+   5: 00000000:1234 00000000:0000 0A … uid=10383 inode=11636144   ← real!
+guest internal /proc/net/tcp:  (empty, projected away)
 ```
-@titan-pipe-1-framebuffer      @titan-pipe-1-input         @titan-pipe-1-activity
-@titan-pipe-1-gsm              @titan-pipe-1-gps
-@titan-pipe-1-camera  (+ name=camera0 / camera1)           @titan-pipe-1-sensors
-@titan-pipe-1-fingerprint      @titan-pipe-1-crash         @titan-pipe-1-hw
-@titan-pipe-1-ipc              @titan-pipe-1-network
-@titan-process-worker-server-1-<PID>    × 86
+
+⇒ **the guest's socket is a real host-kernel socket** (uid shows the app's real uid 10383).
+⇒ the network namespace is **shared with the host** (host reading the virtual kernel's
+`/proc/<pid>/net/tcp` ≈ host global connection count).
+
+#### 4.7.2 But `setsockopt` is intercepted by userspace (controlled experiment, K1)
+
+| Socket option | Host (real 5.15) | Guest (projection) |
+|---|---|---|
+| IP_TOS(1) / IP_TTL(2) / IP_MTU_DISCOVER(10) | ✅ | ✅ same |
+| **IP_RETOPTS(7)** | ✅ 0 | ❌ **EINVAL** |
+| **IP_PKTINFO(8)** | ✅ 0 | ❌ **EINVAL** |
+| **IP_RECVTTL(12)** | ✅ 0 | ❌ **EINVAL** |
+| SO_REUSEADDR / SO_KEEPALIVE / SO_RCVBUF | ✅ | ✅ same |
+| TCP_NODELAY / TCP_KEEPIDLE | ✅ | ✅ same |
+| **UDP IP_RECVTTL / IP_PKTINFO** | ✅ 0 | ❌ **EINVAL** |
+
+⇒ The host kernel accepts these options; the guest refuses ⇒ **`setsockopt` is intercepted by a
+userspace layer that only lets a whitelisted subset through.**
+
+#### 4.7.3 Corroborating symptoms
+
+- `ping` inside the guest: `setsockopt(IP_RECVTTL): Invalid argument`, and replies show **`ttl=0`** (abnormal).
+- Guest internal `/proc/net/tcp` and `/proc/net/tcp6` are **empty**; `/proc/net/sockstat` **does not exist**.
+- The guest's `/proc/net/unix` contains **no** `@titan-pipe-*` (the host side shows ~38).
+
+#### 4.7.4 Conclusion
+
+> Networking is **neither purely "reusing the host stack" nor purely "a userspace stack"**, but a **hybrid**:
+> - **data plane (K1 fact)**: a socket created in the guest **exists in the host kernel** (visible in host `/proc/net/tcp`, uid=10383);
+> - **control plane (K1 fact)**: some `setsockopt` options are **intercepted by a userspace layer** with a whitelist;
+> - **info plane (K1 fact)**: `/proc/net/*` is **projected/filtered**, hiding real connections.
+>
+> **Candidate model (K2)**: data-plane transport is very likely handled by the host kernel stack.
+> **Indistinguishable items (K3)**: whether additional userspace processing sits above the data plane
+> cannot be decided by current experiments.
+>
+> "It can reach the network ⇒ it reuses the host stack" overclaims; the correct statement is "a
+> corresponding socket **exists** in the host kernel, but there is userspace involvement on the socket
+> control plane, and real connections are not visible inside the guest".
+
+### 4.8 Hardware proxy bus `@titan-pipe-*` — **Grade A / P0 / K1 name enumeration**
+
+Host `/proc/net/unix` is fully readable by the shell identity and exposes the IPC channel names
+between guest subsystems and the host:
+
+```text
+@titan-pipe-1-framebuffer      @titan-pipe-1-input-qwerty     @titan-pipe-1-activity
+@titan-pipe-1-gsm              @titan-pipe-1-gps              @titan-pipe-1-network
+@titan-pipe-1-camera           @titan-pipe-1-sensors          @titan-pipe-1-fingerprint
+@titan-pipe-1-crash            @titan-pipe-1-hw-control       @titan-pipe-1-ipc
+@titan-process-worker-server-1-<host PID>   × 95
+@titan-1-process-monitor
 ```
 
-**The above is strictly a raw name enumeration from `/proc/net/unix`. This report draws no
-network or communication-architecture conclusions from it.**
+- The above is a raw name enumeration from `/proc/net/unix`. **No network or communication
+  architecture is inferred from it.**
+- The guest's internal `/proc/net/unix` **cannot see** these names (~38 → 0): IPC names are hidden from the guest.
+- ⇒ **this naming reveals the existence of proxy channels for guest peripherals**: camera / GPS /
+  telephony / sensors / fingerprint / graphics / input / Activity each have their own abstract unix
+  socket channel. The guest also exposes product-specific properties
+  `android.host.adb.port=6556`, `android.host.adb.server.port=6038`. 【P2】
 
-These correspond exactly to strings in the host-side `libuserkernel64.so`:
-`titan-virtpipe-dma-%u-%d`, `titan-virtpipe-shm-%u-%d`, `titan-%u-process-monitor`. 【P1】
+### 4.9 Storage layer — **Grade B / P1 observation + K2 interpretation**
 
-⇒ **This naming reveals how guest peripherals are proxied**: camera / GPS / telephony / sensors /
-fingerprint / graphics / input / Activity each have their own abstract Unix socket channel.
-The guest also exposes product-specific properties `android.host.adb.port=6556` and
-`android.host.adb.server.port=6038`. 【P2】
+> ⚠️ This version focuses on controlled experiments; storage-format conclusions are carried over
+> from the previous version (grade B / P1), excerpted here.
 
-### 4.7 Storage layer — **Grade B / P1**
+Host-side private directory `files/instance1/androidfs_10.0.0/`:
 
-Host-side private directory `files/instance1/androidfs_10.0.0/` (1.8 GB total):
-
-```
+```text
 ├── androidfs.bin          64 B     magic [REDACTED] / raw bytes [REDACTED]
-├── locales.bin           491 B
-├── config.gz            1305 B
 ├── fscache.bin        402,698 B
 ├── system/
 │   ├── readonly.bin   1,557,878,007 B   (1.45 GiB)  magic [REDACTED] / raw bytes [REDACTED]
 │   ├── superblock.bin  16 B             magic [REDACTED] / raw bytes [REDACTED]
 │   └── 00000000/       writable index objects
 ├── vendor/  readonly.bin 30,533,337 B + superblock.bin 16 B
-├── data/    831 index objects + fscache.bin 67,108,864 B (64 MiB) + superblock.bin 16 B
-├── cache/   superblock.bin 16 B + 00000000/ (14 entries)
+├── data/    + fscache.bin 67,108,864 B (64 MiB) + superblock.bin 16 B
 └── root/
     ├── block.img        8,388,608 B    ← a genuine Android boot image
-    ├── readonly.bin     2,696,464 B
-    └── superblock.bin          16 B
+    └── readonly.bin     2,696,464 B
 ```
 
-**Header field decoding (cross-validating)**:
+- The object count in the `readonly.bin` header equals the same partition's `superblock.bin`
+  **exactly** (system 4509 / vendor 503).
+- **Magic byte order**: all three magics are stored **two characters at a time, as 16-bit
+  little-endian halves**, so the **raw byte order is `[REDACTED]` / `[REDACTED]` / `[REDACTED]`**; `od -x` renders them
+  as the big-endian char pairs `[REDACTED]` / `[REDACTED]` / `[REDACTED]`.
+- **`root/block.img` is a structurally valid Android boot image** (`[REDACTED]` + `page_size=4096` + `name="titan"`). **K1.**
+- **Format lineage**: `libp7zip.so` in the APK contains `[REDACTED]` / `AES256CBC` / `[REDACTED]` / `BCJ2`,
+  ⇒ [REDACTED]/[REDACTED]/[REDACTED] is a **private wrapper over the 7-Zip family**. **K2.**
+- **`readonly.bin` is unencrypted**: guest processes **mmap the file directly**, and at mapped
+  offsets one reads `7f 45 4c 46` (ELF) and valid ARM64 instructions. **K1.**
 
-```
-<part>/superblock.bin (16 B)          <part>/readonly.bin (first 64 B)
-  +0x00  42 50 55 53  "[REDACTED]"            +0x00  41 54 49 54  "[REDACTED]"
-  +0x04  10 00 00 00  = 16  ← hdr len    +0x04  40 00 00 00  = 64  ← hdr len
-  +0x08  9d 11 00 00  = 4509 ← count     +0x08  9d 11 00 00  = 4509 ← **identical to superblock**
-         system=4509 vendor=503
-         data=3800   cache=11  root=23
-```
+### 4.10 Virtual root — **Grade C / P2 / K1 form observation + K2 mechanism**
 
-The object count in the `readonly.bin` header **exactly equals** the corresponding partition's
-`superblock.bin` count (system 4509 / vendor 503). This is the hardest cross-evidence for the
-layering "[REDACTED] is the index, [REDACTED] is the data".
+Measured inside the guest:
 
-**Magic-number byte order (must be stated)**: all three magics are stored on disk as **two 16-bit
-little-endian half-words**, so the **raw byte order is `[REDACTED]` / `[REDACTED]` / `[REDACTED]`**; `od -x` renders
-them as big-endian character pairs, yielding `[REDACTED]` / `[REDACTED]` / `[REDACTED]`. This must be spelled out, or
-any reader re-checking with `xxd` / `od -c` will conclude the data was fabricated.
-
-**`root/block.img` is a structurally valid Android boot image (header v0)**:
-
-```
-+0x00  41 4e 44 52 4f 49 44 21   "[REDACTED]"
-+0x08  70 0e 03 00   kernel_size  = 200,304
-+0x0C  00 80 00 10   kernel_addr  = [REDACTED]   (standard ARM64)
-+0x10  ec f0 28 00   ramdisk_size = 2,682,092
-+0x14  00 00 00 11   ramdisk_addr = 0x11000000   (standard)
-+0x20  00 01 00 10   tags_addr    = 0x10000100
-+0x24  00 10 00 00   page_size    = 4096
-+0x30  74 69 74 61 6e   name = "titan"
-```
-
-⇒ **The claim "the boot partition is simulated in userspace" is upgraded from inference to
-measurement.**
-
-**Container format lineage**: the APK ships `libp7zip.so` (3.1 MB) whose string table contains
-`[REDACTED]`, `AES256CBC`, `[REDACTED]`, `BCJ2`, `Deflate64`, `PPMd`.
-⇒ [REDACTED]/[REDACTED]/[REDACTED] is not a from-scratch encrypted filesystem but a **private wrapper over the 7-Zip
-family**.
-
-**`readonly.bin` is *not* encrypted (this overturns an earlier conclusion)**: guest processes
-**mmap the file directly** (166 mappings in guest init, 358 in the guest SF), and reading the file
-at those mapped offsets yields `7f 45 4c 46` (ELF) and valid ARM64 instructions.
-⇒ It is a **plaintext, page-aligned, directly mmap-able flat ELF container** (conceptually close to
-EROFS / incfs).
-
-**Where the AES actually goes**: the product's own logs — `AndroidLog.log` (223 KB),
-`UserKernel.log`, `UserKernelApi.log` — **all high-entropy ciphertext**.
-⇒ Encryption is real, but applied to **its own runtime logs**, not to the guest image.
-
-### 4.8 Virtual root — **Grade C / P2**
-
-Observed inside the guest:
-
-```
+```text
 $ su -c id
 uid=0(root) gid=0(root) groups=0(root) context=--  u:object_r:toolbox_exec:s0
 
@@ -519,564 +669,501 @@ $ magisk -v        →  26.0:MAGISK:R
 $ magisk -V        →  26000
 $ ls -l /sbin/magiskinit  →  -rwxr-x--- 1 root root 642952
 $ ls -l /sbin/su          →  /sbin/su -> ./magisk
-
-/data/adb/
-├── lspd/  magisk/  magisk.db (40960 B)
-├── modules/zygisk_lsposed/
-├── post-fs-data.d/  service.d/
-├── start.sh   (u0_a100, 100 B)
-└── su_arm64   (1,708,512 B)
 ```
 
-**Conclusions**:
-- The product does **not reimplement a root state machine**; it runs a **Magisk 26.0 stack**.
-  ⚠️ **Evidence boundary**: `magisk -v` printing `26.0:MAGISK:R` only establishes that "a
-  Magisk 26.0-compatible implementation/binary form is running". **No hash comparison against the
-  official build was performed**, so "unmodified official release" cannot be asserted.
-- It works because the second seccomp filter rewrites the return values of
-  `getuid` / `getresuid` / `capget` to `0` / full capabilities.
-  **The host kernel reports the same process as uid=10383, CapEff=0 (P0).**
-- The `zygisk_lsposed` module explains the origin of `zygiskd64` / `zygiskd32` / `lspd`.
-- Device A has **no usable root path whatsoever**, so guest root cannot be the result of host
-  privilege escalation.
+**Conclusion**:
 
-### 4.9 Scheduling priority — **Grade A / P0 (controlled experiment)**
+- The product runs a **Magisk 26.0 stack**, not a self-built root state machine.
+  ⚠️ **Evidence boundary**: no hash comparison against an official build was performed, so
+  "unmodified official build" cannot be asserted. **K1 form / K3 provenance.**
+- The external reason it works: the 2nd seccomp filter/projection layer projects the return values
+  of `getuid` / `getresuid` / `capget` to `0` / all capabilities.
+  **Host-kernel measurement of the same process: uid=10383, CapEff=0 (P0).**
+- The host device **has no usable root path**, so guest root cannot be a host privilege escalation.
 
-Controlled experiment on Device A (background the VM, then restore):
+### 4.11 Scheduling priority — **Grade A / P0 / K1 observation + K2 mechanism**
 
-```
-                    instance1        entire guest tree (85)
-before HOME    →  cpuset:/top-app     cpuset:/top-app    (100%)
-after  HOME    →  cpuset:/foreground  cpuset:/top-app    (100%, not one moved)
-oom_score_adj:    instance1 = 101     guest tree = 0
-```
+Controlled experiment (backgrounding the VM, then restoring):
 
-**The host demoted `instance1` from `top-app` to `foreground`, and none of the 85 guest processes
-moved.**
+| | `instance1` | whole guest tree |
+|---|---|---|
+| before HOME | `cpuset:/top-app` | `cpuset:/top-app` (100%) |
+| after HOME | `cpuset:/foreground` | `cpuset:/top-app` (none dropped) |
+| `oom_score_adj` | `200` | `0` |
 
-⇒ **Correct mechanism** (corroborated by two independent metrics): guest processes **inherit
-`instance1`'s cgroup bucket and `oom_score_adj` at fork time during VM startup** (the user launches
-the VM in the foreground, so `instance1` is at `top-app` / `oom 0`), and **any subsequent demotion
-of `instance1` by the host has no effect on the already-forked guest processes**.
+⇒ **Mechanism that best fits the observation (K2)**: guest processes **inherited the cgroup bucket and
+`oom_score_adj` at the moment they were forked from `instance1` during VM startup**; afterwards any
+host demotion of `instance1` no longer affects already-forked guest processes.
 
-**Accurate formulation (limited to this experimental window)**: "guest processes acquired, at
-startup, a scheduling affiliation **independent of `instance1`'s later state changes**, and retained
-`top-app` throughout this foreground/background switching experiment."
+> ⚠️ **"Permanent" cannot be inferred.** This experiment covers only a ~6-second window after one
+> HOME switch. Marked **U / K3**.
 
-> ⚠️ **"Permanently" cannot be inferred.** The experiment covers only a ~6-second window after a
-> single HOME switch. Process death/restart, LMKD intervention, Activity lifecycle changes, vendor
-> schedulers, task profiles, and cgroup freezer were **not covered**. **Grade U.**
+### 4.12 Graphics stack — **Grade B / P1 / K1 mapping observation + K3 implementation**
 
-**Unresolved cross-device contradiction (Grade U)**: the same observation on Device B showed the
-guest tree **following** `instance1` down from `top-app` to `foreground`. Device B is a
-Magisk-Alpha-rooted device where root modules can modify cgroups freely, so Device A's data
-prevails — but the cause of the discrepancy is undetermined.
+`kgsl / ion / dmabuf` is the default path for **any** GPU-rendering process on Android.
+Externally, the guest SF holds host paths such as `/dev/kgsl-3d0`; whether this is full passthrough,
+proxy forwarding, or userspace relaying cannot be uniquely determined by black-box means. **K3.**
+What is genuinely worth recording is the `@titan-pipe-*` channel naming in §4.8.
 
-### 4.10 Graphics stack — **Grade B / P1 (attribution correction)**
+### 4.13 In-process ELF loading — **Grade B / P1 / K1 metadata observation**
 
-| Holder | `/dev/kgsl-3d0` | `/dev/ion` | `dmabuf` |
-|---|---|---|---|
-| Host SurfaceFlinger | 12 fds, **840 mmaps** | 2 | 70 |
-| Guest SurfaceFlinger | 1 fd, **322 mmaps** | 2 | 35 |
-
-`kgsl` / `ion` / `dmabuf` are the **default** path for *any* GPU-rendering process on Android, and
-the host SF has **far more** mappings than the guest SF. Architecturally there is **no guest kernel
-at all**, so all guest device access necessarily lands on host kernel drivers.
-⇒ "Direct physical-GPU passthrough" is **an architectural necessity, not a design choice**, and
-should not be listed as a standalone technical barrier. What is actually worth documenting is the
-channel naming in §4.6.
-
-### 4.11 In-process ELF loading — **Grade B / P1**
-
-- Guest processes are produced by `exec`-ing `libloader64.so` / `libloader32.so` from the host app
-  directory. `[REDACTED] -l` shows `INTERP = /system/bin/linker64` and entry point `[REDACTED]` — i.e.
-  **ELF executables disguised as `.so` files** shipped in the APK (exploiting the fact that
-  `lib/<abi>/` files are installed with the executable bit, sidestepping the "unknown-app install"
-  restriction). Cross-check (P0): the `Name` field in `/proc/<pid>/status` is literally
-  `libloader64.so`.
-- `libloader64.so` (200 KB) is an **in-process ELF loader**: its string table contains
-  `"%s" is too small to be an ELF executable`, `%s: load executable not supported!`, `execv`.
-- `libuserkernel64.so` (4.17 MB) is the **userspace kernel**: of its 279 dynamic symbols,
-  **268 are UND (imports) and 0 are defined/exported functions**. It **imports** `open`, `openat`,
-  `stat`, `mmap`, `ioctl`, `socket`, `execve` and other real libc calls, yet exports nothing.
-  Its string table contains `vma:%u, dentry:%u, inode:%u, file:%u` (**userspace VFS object model**),
-  `%s/titan-memfd-inode-%lu`, `%s/titan-tmp-inode-%lu`, `fscache.bin`, `sys_memfd_create`.
-
-> All three items above (`INTERP`, symbol-table statistics, string tables) were obtained at the
-> **P1** tier, because `/data/app/*/<pkg>*/lib/arm64/` is `Permission denied` without root.
-> The fact that `libloader64.so` is an executable is independently corroborated at **P0** by the
-> process `Name` field.
+- Guest processes are obtained by `exec`-ing `libloader64.so` / `libloader32.so` from the host app's
+  directory; `[REDACTED] -l` shows `INTERP = /system/bin/linker64`, entry point `[REDACTED]`
+  — i.e. an **ELF executable disguised as a `.so`** packed into the APK (using the executable bit that
+  `lib/<abi>/` confers).
+- Cross-check (P0): the `Name` field in `/proc/<pid>/status` is literally `libloader64.so`
+  (virtual kernel process 7674).
+- The guest's `/system/bin/init`, `surfaceflinger`, `zygote64` are **not exec'd**; they are read into
+  the current process by this loader, relocated, and jumped into.
 
 ---
 
 ## 5. Architecture Model
 
-### 5.0 The essence: three request-handling paths
+### 5.1 The essence: three externally observable processing paths
 
-**This is the single most important section for understanding the product, and the most fundamental
-way in which it differs from a true LibOS.**
+**This is the single most important section for understanding the product.**
 
-> **Terminology note (important)**: A / B / C describe **"request / object-access handling
-> paths"**, **not "syscall types"**. An object such as `/proc/cpuinfo` is accessed through several
-> syscalls — `openat()` → `read()` — where `openat` takes path C and `read` takes path B.
-> Saying "cpuinfo is a branch-B syscall" would be inaccurate.
+> **Terminology (important)**: A / B / C describe **"processing results and semantic paths of a
+> request / object access"**, **not "three confirmed internal implementation branches"**, and
+> **not "syscall types"**.
+>
+> An object like `/proc/cpuinfo` is accessed through several syscalls (`openat()` → `read()`):
+> the external result of `openat` may appear as path C, that of `read` as path B.
 
-For every **request / object access** from the guest, the L0/L1 interception layer makes a routing
-decision. In terms of **externally observable behaviour**, there are three handling paths:
+Every **request / object access** by the guest falls, in externally observable behavior, into:
 
-| Path | Behaviour | Reaches the host kernel? | Typical requests | Evidence grade |
+| Path | Externally observable semantics | Reaches host kernel | Typical requests | Determinacy |
 |---|---|---|---|---|
-| **A · Passthrough** | Handed verbatim to the host kernel | ✅ yes (arguments unchanged) | `mmap`, `futex`, `nanosleep`, `clock_gettime`, `getrandom` | **A′ (inferred)** |
-| **B · Synthesis** | Never enters the kernel; L1 constructs the return value in userspace | ❌ no | identity calls `getuid`/`getresuid`/`getpid`/`capget`; and the **read results** of `/proc/{status,cpuinfo,meminfo,version,uptime}` | **Grade C (measured)** |
-| **C · Redirection** | Arguments (path / offset) rewritten, then handed to the host kernel | ✅ yes (arguments rewritten) | `openat("/system/…")`, `stat`, the **presentation layer** of `/proc/<pid>/maps` | **Grade C (measured)** |
+| **A · host-capability reuse / passthrough** | Behavior matches host Linux semantics | cannot be uniquely determined | `mmap`, `futex`, `nanosleep`, `clock_gettime`, socket data plane | **K2** |
+| **B · synthesis / projection** | Return value or content constructed guest-side | external result does **not** use the host's real semantics | `getuid`/`getpid`/`capget`; `uname`/`sysinfo`; `/proc/{status,cpuinfo,meminfo,version,uptime}` | **K1 result + K3 mechanism** |
+| **C · redirection / virtual filesystem** | Object lands in the guest's own storage/namespace | real mmap/page-cache semantics observable externally | `openat("/system/…")`, `stat`, `mount`, `/proc/<pid>/maps` display layer | **K1 result + K2/K3 mechanism** |
 
-**A and C both reach the host kernel — the only difference is whether the arguments were rewritten.
-B never reaches the kernel at all.** This distinction is more fundamental than "userspace or not":
-all three are decided in userspace, but only B is *genuinely* virtual.
+**This version explicitly classifies mounts and the network control plane as involving "userspace semantic handling the host kernel cannot directly explain" (K1).**
 
-#### Evidence
+### 5.2 Syscall projection comparison table (core evidence of this version)
 
-**Branch B — measured (Grade C / P2 versus P0)**
+Summary of the same binary run on both sides:
 
-One process, two contradictory self-descriptions, with the host kernel playing no part in the read:
-
-| Observation | Guest view (P2) | Host kernel truth (P0) |
+| Semantic class | Comparison result | Level |
 |---|---|---|
-| `su -c id` | `uid=0(root)` | uid **10383** |
-| `CapEff` / `CapPrm` | `0000003fffffffff` | `0000000000000000` |
-| `Seccomp` | **0** | **2** (with 2 filters) |
-| `/proc/cpuinfo` | Cortex-A53 × 8 | Snapdragon 8 Gen 2 |
-| `/proc/meminfo` | 4,063,232 kB | 15,496,684 kB |
+| `uname()` / `sysinfo()` | guest returns synthesized values (kernel, RAM, proc count) | **K1 projected** |
+| `getuid/geteuid/getgid` | guest returns per virtual uid | **K1 projected** |
+| `clock_gettime(REALTIME)` | both sides **identical** seconds | **K1 passthrough** |
+| `mount/umount` | guest-side uid 10000 can still `mount(tmpfs)`; `umount` is root-only | **K1 userspace** |
+| `setsockopt(IPPROTO_IP)` | host OK vs guest EINVAL | **K1 intercepted** |
+| `socket/bind/listen` | guest's socket appears in host `/proc/net/tcp` | **K1 passthrough** |
+| `/proc/*` content | systematically different from host truth | **K1 projected** |
 
-**Branch C — measured (Grade C / P2 versus P1)**
+### 5.3 Layered view (with determinacy tags)
 
-Inside the guest, `/proc/self/maps` reports
-`/system/lib64/libnetd_client.so`, dev `03:08`, ino `3080`;
-on the host side the very same mapping is
-`…/androidfs_10.0.0/system/readonly.bin`, dev `fd:26`, ino `118337`.
-
-⇒ **A real mmap genuinely happened** (real page cache, real zero-copy, pages shared between guest
-processes) — **only the presentation layer was rewritten**. This is the **mechanistic basis** for
-"a structural advantage on the file-access path" — but it is **not a performance result** (see
-"Performance implications" below).
-
-**Branch A — inferred (labelled A′, not directly observed)**
-
-This report **never directly observed the act of passthrough itself**. It is inferred from these
-constraints:
-
-1. Guest processes map the **host's** bionic (`/apex/com.android.runtime/lib64/bionic/libc.so`);
-2. The guest SF maps the **host's** `/vendor/lib64/vendor.qti.hardware.display.mapper@*.so`;
-3. The guest SF holds the **host's** `/dev/kgsl-3d0` (322 mmaps versus the host SF's 840 — the same
-   driver path);
-4. Architecturally there is no guest kernel, so all device access must land on host kernel drivers;
-5. If every syscall were handled in userspace, `libuserkernel64.so` would have to export a complete
-   syscall implementation — yet its dynamic symbol table is **279 entries, 268 of them UND and
-   0 defined/exported functions**.
-
-⇒ "The overwhelming majority of syscalls land verbatim on the host kernel" is an **architectural
-necessity**. But honesty requires stating that **"the filter lets it through" and "the filter
-intercepts and immediately forwards it" are externally indistinguishable**, and this report's
-instrumentation cannot tell the two apart. Branch A is therefore labelled
-**A′ (architecturally inferred, not directly observed)**.
-
-**Candidate branch D — intercept and deny / degrade (Grade U, unproven)**
-
-In theory a further class is needed for calls that must **not** reach the host kernel: `mount`,
-`umount`, `ptrace`, `reboot`, `init_module`, `setns`, `unshare`, `chroot`, `pivot_root`.
-`libuserkernel64.so` contains constants such as `PTRACE_SEIZE`, `PTRACE_GETREGS`, and
-`PR_SET_SECCOMP`, hinting at dedicated handling, but **no direct evidence was obtained**. It is
-listed as a **Grade U candidate**.
-
-#### Performance implications (**mechanistic inference, not measurement**)
-
-| Branch | Cost per call |
-|---|---|
-| A | Native host-kernel path (only Android's own layer-1 seccomp and sandbox checks still apply; **no extra interception overhead**) |
-| C | One userspace argument rewrite + native host-kernel path (real page cache / real zero-copy) |
-| B | Never enters the kernel; constructed in userspace — *faster* than a real kernel path, but only applicable to identity and hardware-info calls |
-
-> ⚠️ **This report performed no performance measurement whatsoever.** No syscall latency,
-> `mmap`/`fork`/`futex`/I-O/GPU benchmark of any kind, and no comparison against a native host
-> process. Therefore **conclusions such as "near-native performance" cannot be drawn** — that is a
-> claim at an entirely different level.
->
-> The evidence supports only a **structural judgment**: **the architecture has the structural
-> advantage of reusing host-kernel paths and avoiding the cost of full syscall emulation**, because
-> path A goes straight to the kernel and path C only rewrites arguments.
-> **This is a mechanistic inference, not a measured performance result.**
-
-#### Positioning conclusion
-
-> **Available observation does not support classifying this as a complete LibOS.**
-> A true LibOS / userspace kernel would normally also need to cover syscall semantics, process
-> abstraction, virtual-memory abstraction, signal semantics, fd semantics, filesystem semantics,
-> networking, scheduling semantics, synchronisation, and IPC in full — yet **this report explicitly
-> excludes networking**, and none of the remaining dimensions was verified item by item.
->
-> **The evidence better supports** describing it as a
-> **hybrid of "host-kernel reuse + syscall projection + userspace filesystem/device abstraction"**,
-> i.e. a **syscall projection and device-emulation layer built on top of the host kernel**.
-
-> VPhoneGaGa's technical positioning is not "a userspace kernel reimplementation" but
-> **"a syscall projection and device-emulation layer built on top of the host kernel"**.
-> Its difficulty lies not in kernel-semantics completeness but in
-> (1) the self-consistency of its full-field `/proc` projection,
-> (2) ecosystem compatibility with software that depends heavily on kernel behaviour (official
-> Magisk above all), and
-> (3) adaptation to vendor-specific hardware HALs.
-
-**An intuitive analogy** (for comprehension only, not evidence):
-a true LibOS is "building a new house from the ground up, including all plumbing and wiring";
-this product is "renting the host's house but swapping out the door number, the utility meters,
-and the ID card for those of a different house" — **the walls, pipes, and wiring are still the
-host's; it merely looks like a different building from the outside**.
-
-### 5.1 Layered view
-
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Host Linux kernel 5.15.167 (real)                                    │
-│   real syscalls · real procfs · real GPU driver · real VMAs          │
+│   real syscalls · real procfs · real sockets · real GPU · real VMA   │
 └─────────────────────────────────────────────────────────────────────┘
-      ▲  ① real syscalls (selectively intercepted by the 2nd seccomp filter)
+      ▲  ① externally appears as host-capability path; whether it truly
+      │     enters the host kernel is K3
 ┌─────┴───────────────────────────────────────────────────────────────┐
-│ L0  Second seccomp filter (installed by the guest virtual kernel,    │
-│     inherited by all 85 guest processes)                             │
-│     → intercepts openat/read on specific paths, returns synthesized  │
+│ L0  2nd seccomp filter (installed by the guest virtual kernel;       │
+│     inherited by the whole tree)                                     │
+│     → intercepts/projects specific openat/read paths                 │
 ├─────────────────────────────────────────────────────────────────────┤
-│ L1  Userspace kernel  libuserkernel64.so (4.17 MB, zero exports)     │
+│ L1  userspace kernel layer  libuserkernel64.so (zero exported syms)  │
 │     · userspace VFS object model (vma/dentry/inode/file)             │
 │     · virtual PID / UID / capability mapping                         │
+│     · userspace mount tree (independent of host VFS) ★measured       │
+│     · socket control-plane whitelist (setsockopt interception) ★     │
 │     · /proc content synthesis (→ memfd:titan-tmp-inode-N)            │
-│     · @titan-pipe-* peripheral proxy channels                        │
+│     · @titan-pipe-* peripheral proxy channels                         │
 ├─────────────────────────────────────────────────────────────────────┤
-│ L2  In-process ELF loaders  libloader64.so / libloader32.so (200 KB) │
-│     · mmap guest ELFs by offset from readonly.bin, relocate in-proc  │
+│ L2  in-process ELF loader  libloader64.so / libloader32.so           │
+│     · mmap guest ELF from readonly.bin by offset and self-relocate   │
 ├─────────────────────────────────────────────────────────────────────┤
-│ L3  Guest Android 10 system stack (85 processes)                     │
+│ L3  guest Android 10 stack (~85–100 processes)                       │
 │     init / zygote64+32 / system_server / surfaceflinger /           │
-│     adbd(6556) / Magisk 26.0 / LSPosed / Zygisk64+32 / 141 packages  │
+│     adbd(6556) / Magisk 26.0 / LSPosed / Zygisk64+32                │
 ├─────────────────────────────────────────────────────────────────────┤
-│ L4  Storage: private plaintext containers (not mounts, not encrypted)│
-│     [REDACTED] volume group → [REDACTED] partition superblock → [REDACTED] mmap blocks │
-│     system 1.45GiB / vendor 30MB / data + 64MiB fscache / root+boot  │
+│ L4  storage: private plaintext container (not mounted, not encrypted)│
+│     [REDACTED] volume group → [REDACTED] superblock → [REDACTED] plaintext mmap blocks │
 ├─────────────────────────────────────────────────────────────────────┤
-│ L5  Host presentation: single MyNativeActivity1 + host SurfaceFlinger│
+│ L5  host presentation: single Activity + host SurfaceFlinger          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 The two-sided table (the report's core evidence)
+> L0/L1 "interception/projection" is a **K1 observable result** (including controlled experiments);
+> "userspace kernel layer" is a **K2 candidate explanation**; its concrete internal implementation is **K3**.
 
-One process, two self-descriptions:
-
-| Dimension | Guest self-description (P2) | Host kernel fact (P0) | Mechanism |
-|---|---|---|---|
-| PID | 1 / 43 / 60 / 249 | 7098 / 7227 / 7263 / 7957 | seccomp rewrites the `getpid` family |
-| UID | 0 | 10383 | seccomp rewrites the `getuid` family |
-| Capability | full `0x3fffffffff` | `0` | seccomp rewrites `capget` |
-| Its own seccomp state | 0 | 2 (2 filters) | seccomp rewrites `/proc/self/status` |
-| Kernel | 4.14.42-titan | 5.15.167 | synthesized `/proc/version` |
-| CPU | Cortex-A53 × 8 | Snapdragon 8 Gen 2 | synthesized `/proc/cpuinfo` |
-| Memory | 3.9 GB | 14.8 GB | synthesized `/proc/meminfo` |
-| `/system` source | ext4 block device | `readonly.bin` file mappings | synthesized `/proc/mounts` + maps |
-| cgroup | `cpu:/apps` | 6 controllers + `/uid_10383/pid_6839` | synthesized `/proc/<pid>/cgroup` |
-
-### 5.3 Startup sequence (observed + inferred)
-
-1. **Host instance bootstrap** — host zygote forks `:instance1`; loads `libVPhoneGaGaLib.so`,
-   establishes the JNI channel, opens the `readonly.bin` containers, reads the [REDACTED] superblocks.
-2. **Virtual kernel init** — `:instance1` forks `titan64_0:kernel`; that process **installs the
-   second seccomp filter on itself**; parses the [REDACTED] index and [REDACTED] superblocks, builds the
-   userspace VFS, and mounts the virtual boot partition (`root/block.img`).
-3. **Syscall virtualization goes live** — every subsequently forked process inherits the seccomp
-   filter and enters "guest" semantics: PID / UID / capability / `/proc` are all projected.
-4. **Privileged process spawning** — after the virtual kernel brings up guest init, `magiskd`
-   (+0.8 s) / `lspd` (+0.9 s) / `zygiskd64` (+3.0 s) / `zygiskd32` (+6.4 s) appear in sequence, and
-   their **real parents on the host side are all the virtual kernel** (the 32-bit chain's real parent
-   is the 32-bit virtual kernel).
-   **Mechanism undetermined**: this may be direct spawning by the virtual kernel, or the virtual
-   kernel acting as a `PR_SET_CHILD_SUBREAPER` that receives orphaned, daemonized descendants —
-   see ARCHITECTURE.md §1.3.
-   Meanwhile the guest is *projected* a "real-device-shaped" logical parent tree
-   (`init(1) → magiskd(43) → {lspd(56), zygiskd64(259)}`) which need not reflect the real parent.
-5. **System services and graphics** — `titan64_1:init` parses `init.rc` and brings up ~70 system
-   services; the guest SurfaceFlinger hands composited output to the host's single Activity via
-   `@titan-pipe-1-framebuffer`; camera / GPS / telephony / sensors / fingerprint / input each use
-   their own `@titan-pipe-1-*` channel.
-6. **Guest adbd** — listens on 6556 (`android.host.adb.port=6556`), providing an internal debug
-   entry point.
-
-### 5.4 Positioning versus gVisor (complexity is not directly comparable)
+### 5.4 Positioning vs gVisor (complexity should not be compared directly)
 
 | Dimension | gVisor (true LibOS) | VPhoneGaGa 3.4.0 |
 |---|---|---|
-| Syscall handling | **All** intercepted, **all** semantics reimplemented in userspace | **Dispatch**: A passthrough / B synthesis / C redirection (§5.0) |
-| Memory management | Own address-space abstraction and page tables (**physical pages still come from host mmap**) | **Fully reuses host VMAs + mmap** |
-| CPU scheduling | **Both rely on the host CFS**; gVisor merely emulates scheduling *semantics* (priority, affinity) at the syscall layer, whereas VPhoneGaGa passes even those through | same as left |
-| Process isolation | Full sandbox | **No namespaces at all; same UID** |
-| What the guest "sees" | An independent kernel abstraction implemented by the sentry | A **path-dispatched synthetic projection** |
-| Essence | **"I built a kernel"** | **"I acted out a kernel"** |
-| Performance profile (mechanistic) | Userspace handling cost on every syscall | One boundary check plus minor path rewriting (**mechanistic inference; no performance measurement in this report**) |
-| Core engineering | Kernel-semantics completeness (network stack, memory, filesystem all self-built) | `/proc` full-field projection consistency + Magisk ecosystem compatibility + device adaptation |
+| Syscall handling | **all** intercepted, **all** semantics reimplemented in userspace | **external semantics split**: A passthrough / B synthesis / C redirection + mounts & network control plane decided in userspace |
+| Memory management | own address-space abstraction and page tables | **externally reuses host VMA + mmap semantics** |
+| CPU scheduling | both use host CFS externally | same |
+| Process isolation | full sandbox | **no namespace at all, same uid (K1)** |
+| Networking | own userspace stack | **real host sockets + control-plane proxy + /proc projection (K1)** |
+| What the guest "sees" | an independent kernel abstraction implemented by sentry | a **per-path synthesized projection (K1 result)** |
+| Essence | **"I built a kernel"** | externally, **"I acted out a kernel"**; identity / mounts / network control plane all involve **userspace semantic handling that the host kernel cannot directly explain** |
+| Core engineering | kernel semantic completeness | `/proc` field-by-field projection consistency + mount semantic subset + Magisk ecosystem compatibility + device adaptation |
 
-> **This table contains no networking dimension** — see §7 item 10; this report draws no
-> networking-architecture conclusions.
+### 5.5 Minimal architecture model (compressed skeleton)
 
-> This is **not** to diminish the engineering value: what is genuinely scarce here is
-> (1) running a complete Android 10 inside an app sandbox, (2) zero-copy code sharing via a
-> plaintext mmap container, and (3) making the official Magisk ecosystem work with zero host
-> privileges. But complexity ratings should be stated factually — the two are not on the same axis
-> and cannot be ranked against each other.
+Compressing everything that has K1 support yields the following minimal model — enough to answer
+"if one wanted to build something similar, what would it take?":
+
+```text
+                    ┌──────────────────────────────┐
+                    │   Guest semantic projection   │
+                    │   (userspace semantic layer)  │
+                    └──────────────┬───────────────┘
+        ┌──────────────────────────┼──────────────────────────┐
+        ▼                          ▼                          ▼
+  synthetic semantics       virtual objects            host-backed
+  (userspace synthesis)     (userspace-maintained)      (host-carried)
+        │                          │                          │
+  · PID / UID / capability   · /proc view                 · real socket
+  · uname / sysinfo          · mount tree                 · mmap / VMA
+  · parts of /proc           · Android FS view            · clock
+                             · virtual device state       · GPU fd
+                                                           · host IPC buffers
+        └──────────────────────────┼──────────────────────────┘
+                                   ▼
+                              Host Linux kernel
+```
+
+**Meaning of the three columns** (corresponding to the A/B/C paths in §5.1):
+
+| Column | Semantics | Path | Determinacy |
+|---|---|---|---|
+| **synthetic semantics** | synthesized guest-side; no corresponding host truth | B | K1 result |
+| **virtual objects** | state maintained in userspace; host kernel does not hold it | B / C | K1 result |
+| **host-backed** | external behavior reuses host-kernel capability | A | K1 object exists / K2 processing location |
+
+**Peripheral IPC** (`@titan-pipe-*`: framebuffer / input / camera / GPS / sensors / fingerprint…)
+is the right-hand extension of this model: guest peripherals are uniformly proxied by the host via
+abstract unix sockets.
+
+**Engineering positioning derived from it**:
+
+> Not "write an Android emulator", but
+> **"build an Android userspace execution environment running under an ordinary Android app UID,
+> add a sufficiently complete Linux/Android semantic projection layer,
+> and route back to the host whatever cannot or need not be virtualized."**
+
+**⚠️ Nature of this model**: the three columns classify **facts that already have K1 support**; they
+are not assertions about internal implementation branches. The real implementation inside each column
+remains K2/K3.
 
 ---
 
-## 6. Corrections
+## 6. System Boot Flow (observation + inference)
+
+1. **Host instance bootstrap** — host zygote forks `:instance1`; it loads `libVPhoneGaGaLib.so`,
+   establishes the JNI channel, opens the `readonly.bin` containers, reads the [REDACTED] superblock.
+2. **Virtual-kernel initialization** — `:instance1` forks `titan64_0:kernel`; that process
+   **installs the 2nd seccomp filter for itself**; it parses the [REDACTED] index and [REDACTED] superblock,
+   builds a userspace VFS, and sets up the virtual mount tree.
+3. **Syscall virtualization online** — every process forked afterwards inherits the seccomp filter and
+   enters the "guest" semantic space: PID / UID / capability / `/proc` / mounts / network control plane
+   are all projected.
+4. **Privileged process incubation** — after the guest init is started by the virtual kernel,
+   `magiskd` / `lspd` / `zygiskd64` / `zygiskd32` appear, all with the **virtual kernel as their real
+   host-side parent**.
+   **Mechanism undetermined**: could be direct incubation, or `PR_SET_CHILD_SUBREAPER` re-parenting. **K3.**
+   Meanwhile the guest side is projected a "real-device-shaped" logical parent tree.
+5. **System services and graphics** — `titan64_1:init` parses `init.rc` and starts ~70 services;
+   the guest SurfaceFlinger hands composited output to the host single Activity via `@titan-pipe-1-framebuffer`.
+6. **Guest adbd** — listens on 6556 (`android.host.adb.port=6556`), providing the internal debugging entry point.
+
+---
+
+## 7. Corrections
 
 This section proactively lists **overturned or corrected judgments**, including errors made by this
 report's own AI-assisted analysis.
 
-| # | Earlier conclusion | Current verdict | Basis | Tier |
+| # | Earlier conclusion | Current verdict | Basis | Level |
 |---|---|---|---|---|
-| 1 | "[REDACTED] images are decrypted only in memory; no plaintext on disk" | **Overturned** | Plaintext ELF and ARM64 instructions readable at the mapped offsets | P1 |
-| 2 | "ext4/f2fs entirely abandoned" | **Corrected** | The upper layer is a private container; the guest is *disguised* as an ext4 block device | P2 |
-| 3 | "`androidfs.bin` / `superblock.bin` are core image files" | **Corrected** | They are 64 B / 16 B metadata and superblocks | P1 |
-| 4 | Magics written as `[REDACTED]/[REDACTED]/[REDACTED]` | **Supplemented** | Raw on-disk byte order is `[REDACTED]/[REDACTED]/[REDACTED]` (16-bit LE half-words) | P1 |
-| 5 | "Four-layer nested **independent** process tree" | **Corrected** | No PID/UTS/USER/IPC namespaces; same UID; "independent" does not hold | P0/P1 |
-| 6 | "Host app → virtual kernel" parent-child edge | **Corrected** | They are **siblings** under host zygote; the virtual kernel's parent is `:instance1` | P0 |
-| 7 | "Hijacks all guest SVC trap instructions" | **Corrected** | Interception happens at the **seccomp** layer, not at the SVC instruction level; also not ptrace (`TracerPid=0`) | P0 |
-| 8 | **【this report's AI error】** "No syscall interception detected" | **Corrected** | The `Seccomp_filters` 1→2 evidence is conclusive | P0 |
-| 9 | **【this report's AI error】** "The cpuset claim is refuted" | **Corrected** | The controlled experiment shows the guest tree stays in `top-app` regardless of `instance1` demotion | P0 |
-| 10 | "GPU zero-copy passthrough is an SS-tier barrier" | **Attribution corrected** | It is an architectural necessity (no guest kernel) and matches host SF behavior | P1 |
-| 11 | "Purely userspace-simulated root state machine" | **Corrected** | What actually runs is a **Magisk 26.0 stack** (`26.0:MAGISK:R`), not a self-built state machine; but **no official-build hash comparison was done**, so it is not called the "official release" | P2 |
-| 12 | "Complexity far exceeds gVisor" | **Does not hold** | The two take different routes and are not directly comparable | — |
-| 13 | "Runtime logs are fully detached from the host log system" | **Supplemented** | Logs live on **external storage** and are **encrypted** | P1 |
-| 14 | "Host SF recognizes only a single rendering window" | **Weakened** | At least 3 host windows coexist; the accurate statement is "guest graphics converge on a single `MyNativeActivity1`" | P0 |
-| 15 | `targetSdk=29` never mentioned | **New** | One **important compatibility condition** of the current route (whether it is *necessary* remains unverified) | P0 |
-| 16 | `@titan-pipe-*` channels never mentioned | **New** | The real peripheral-proxy mechanism, observable **without root** | P0 |
-| 17 | **【added now】** "Magisk/LSPosed/Zygisk are **directly spawned** by the virtual kernel" | **Weakened + mechanism undetermined** | The observed fact is "the real host-side parent is the virtual kernel"; but the PPid shown inside the guest is a **reconstructed logical tree** (`magiskd`→`1` while the truth is `7024`), which points to `PR_SET_CHILD_SUBREAPER` reparenting. See [ARCHITECTURE.md](ARCHITECTURE.md) §1.3 | P0 + P2 |
-| 18 | **【added now】** "It is a userspace LibOS / virtual kernel" | **Repositioned** | Changed to **"a syscall projection and device-emulation layer"**: measurement shows only identity/hardware-info calls are synthesized in userspace (branch B), filesystem calls are a **real mmap plus presentation rewriting** (branch C), and everything else **lands verbatim on the host kernel** (branch A). See §5.0 | P0 + P1 + P2 |
+| 1 | "Host mount table shows nothing ⇒ no mount capability" | **overturned** | guest uid 10000 can still `mount(tmpfs)` + `/proc/filesystems` whitelist + host mount table unchanged | P0+P2 |
+| 2 | "Can reach network ⇒ reuses host stack" | **corrected (hybrid)** | real host sockets + `setsockopt` intercepted + `/proc/net/*` projected | P0+P2 |
+| 3 | "Simple library hijack, syscalls handled in place" | **corrected** | cross-component IPC + userspace VFS + mount tree + socket control plane | P0+P2 |
+| 4 | "Host cannot see it ⇒ the function does not exist" | **overturned (paradigm error)** | the guest builds OS semantics in userspace; the host is inherently blind to them | — |
+| 5 | "Hijacks all guest SVC trap instructions" | **corrected** | interception is at the **seccomp layer**, not SVC-instruction level; also not ptrace (`TracerPid=0`) | P0 |
+| 6 | "Purely userspace root state machine" | **corrected** | it actually runs a **Magisk 26.0 stack** | P2 |
+| 7 | "Four nested **independent** process trees" | **corrected** | no PID/UTS/USER/IPC namespace, same uid; "independent" does not hold | P0 |
+| 8 | "host App → virtual kernel" parent/child relation | **corrected** | they are **siblings** under host zygote; virtual kernel's parent is `:instance1` | P0 |
+| 9 | "[REDACTED] is an encrypted image, plaintext only in memory" | **overturned** | plaintext ELF and ARM64 instructions readable at mapped offsets | P1 |
+| 10 | "Complexity far exceeds gVisor" | **does not hold** | different routes, not directly comparable | — |
+| 11 | **new** "A/B/C are three internal implementation branches" | **redefined** | changed to "three externally observable processing results / semantic paths" | K2+K3 |
+| 12 | **new** "networking is out of scope" | **upgraded to measured** | controlled experiments yield data-plane / control-plane / info-plane conclusions | P0+P2 |
+| 13 | **new** "mount capability undetermined (U)" | **upgraded to K1** | controlled experiment directly proves userspace decision | P0+P2 |
 
-### 6.1 This round's absolute-wording audit (tightening the academic phrasing)
+### 7.1 Controlled-experiment upgrade list
 
-This section records a **systematic audit aimed at "strong inferences written as proven facts"**.
-No data was changed — only the strength of the conclusions.
-
-| # | Original wording (too strong) | Rewritten as | Reason |
+| Conclusion | v1.1 status | v2.0 status | Upgrade basis |
 |---|---|---|---|
-| 19 | "the second filter **can only** have been installed by the virtual kernel" | "**the evidence best supports** installation by the virtual kernel during bootstrap; **the specific installing caller has not been directly observed**" | Temporal/topological correlation ≠ causal proof; alternative theoretical paths remain |
-| 20 | "**hooked per path and reassembled**" | "**highly consistent with an interface/path-level projection model**" | The original asserted an implementation mechanism; observation can only support "consistent with a model" |
-| 21 | "memfd **are** the entities behind the fake /proc files" | "only establishes that **anonymous/temporary memory objects are associated with a userspace virtual-file implementation**; highly consistent with the model above" | Exceeds the evidence boundary; correlation ≠ identity |
-| 22 | "It is **not** a LibOS" | "**Available observation does not support** classifying it as a complete LibOS; the evidence better supports a hybrid architecture" | A universal negative is unprovable; the report explicitly excludes networking, so it lacks the basis for an exhaustive judgment |
-| 23 | "**syscall** three-branch" | "**three request-handling paths**" | An object such as `/proc/cpuinfo` involves both `openat` and `read`, which take different paths; these are not "syscall types" |
-| 24 | "**near-native performance**" | "has the **structural advantage of reusing host-kernel paths and avoiding full syscall-emulation cost** (**mechanistic inference**)" | **No performance measurement was performed** (no syscall/mmap/fork/IO/GPU benchmark) |
-| 25 | "targetSdk=29 is the **precondition**" | "is **one important compatibility condition** of the current route; whether it is **necessary** is unverified" | No controlled experiment at targetSdk=30/31 |
-| 26 | "inherits and **permanently locks** at startup" | "acquires, at startup, a scheduling affiliation **independent of `instance1`'s later changes**, and retains `top-app` throughout this experimental window" | Only one HOME switch over ~6 s was observed; "permanently" is not inferable |
-| 27 | "**official** Magisk 26.0" | "**a Magisk 26.0 stack** (`26.0:MAGISK:R`); no official-build hash comparison, so not called the official release" | A version string cannot establish build provenance |
+| Mounts are a userspace implementation | U / K3 | **K1** | guest uid 10000 can still `mount(tmpfs)` (impossible on real Linux) |
+| Mount capability boundary | untested | **K1** | `/proc/filesystems` whitelist + per-item mount tests |
+| `uname`/`sysinfo` projection | C-grade side comparison | **K1** | raw-syscall controlled experiment |
+| Network data plane reuses host | U / K3 | **K1 (real socket)** | guest listening port appears in host `/proc/net/tcp` |
+| Network control plane intercepted | untested | **K1** | `setsockopt` two-sided comparison |
+| `/proc/net/*` projected | untested | **K1** | guest internal empty, host side populated |
 
-> **Audit principle**: numbers, commands, and raw output are untouched; **only statements claiming
-> "already proven" are downgraded to "the evidence best supports"**. It is better for a conclusion
-> to look slightly weaker than for the evidence chain to be dismantled over wording.
+### 7.2 Tightened wording (academic norms)
+
+| # | Original phrasing (too strong) | Changed to | Reason |
+|---|---|---|---|
+| 1 | "the 2nd layer is **only** installed by the virtual kernel" | "**current evidence best supports** installation by the virtual kernel at bootstrap" | temporal/topological correlation ≠ causal proof |
+| 2 | "the memfds **are** the entities of the fake /proc files" | "**matches the above model well**" | beyond the evidence boundary |
+| 3 | "**is not** a LibOS" | "**available observation does not support** classifying it as a complete LibOS" | universal negatives cannot be proven |
+| 4 | "**three syscall** branches" | "**three request-handling paths**" | one access involves `openat`+`read`, different paths |
+| 5 | "**performance is near-native**" | "has a **structural behavior** of reusing host-kernel paths" | this report **performs no performance measurement** |
+| 6 | "targetSdk=29 is a **precondition**" | "is **one important compatibility condition** of the current route" | no controlled experiment done |
+| 7 | "the guest's `mount()` **is decided entirely by userspace code, independent of the host kernel**" | "the final semantic result **cannot be explained by the host kernel directly executing the same call**; an independent userspace handler exists" | a "userspace → other host interface" chain cannot be excluded |
+| 8 | "the socket data plane **is handled by the host kernel**" | "a corresponding socket object **exists** in the host kernel; the data-plane processing location is a **candidate model**" | object existence ≠ unique processing path |
+| 9 | "the guest `/proc` **is synthesized by some hooked function**" | "the guest `/proc` output **systematically differs** from host truth" | proves different results, not the synthesis mechanism |
+| 10 | "host mount table shows nothing ⇒ no mount capability" | "the final semantic result of guest mounts **cannot be explained by the host kernel directly executing the same call**" | independent userspace handling exists |
+
+> **Review principle**: numbers, commands, raw output untouched; **only "already proven" statements are
+> downgraded to "best supported by current evidence" or "black-box indistinguishable"**.
 
 ---
 
-## 7. Limitations
+## 8. Research Limitations
 
-| # | Limitation | Grade |
+| # | Limitation | Level |
 |---|---|---|
-| 1 | The **exact policy** of the second seccomp filter is undetermined (requires reading the BPF program, which is kernel-level information) | **U** |
-| 2 | The cgroup inheritance mechanism between `:instance1` and the guest tree **contradicts across the two devices**; unresolved | **U** |
-| 3 | Only **one qualified carrier** (Device A); Device B is rooted with a custom ROM and serves only as a control | — |
-| 4 | The guest instance is **not factory-fresh** (user-installed LSPosed module and `su_arm64` present) | — |
-| 5 | Guest kernel version, CPU model, and memory size are **all disguised values** and cannot support any hardware inference | — |
-| 6 | The **semantics of the four 32-bit fields** starting at `readonly.bin` +0x0C are unparsed | **U** |
-| 7 | Whether AES is enabled for any partition is unverified (`[REDACTED]` / `AES256CBC` exist, but no evidence of use) | **U** |
-| 8 | Version-specific: only 3.4.0 / versionCode 3688. Newer versions may change magics, process rules, or fabricated fields | — |
-| 9 | Edge cases (cold boot, crash restart, degraded paths) are not covered | — |
-| 10 | **This report contains no networking analysis**; all network-related material has been removed | — |
-| 11 | `magiskd` / `lspd` / `zygiskd64` all have the virtual kernel as their real host-side parent; **whether this arises from direct spawning or subreaper reparenting is undetermined** | **U** |
-| 12 | The branch policy of the second seccomp filter (passthrough / `USER_NOTIF` / `TRACE`) is undetermined — **"the filter lets it through" and "the filter intercepts and forwards" are externally indistinguishable to this report's instrumentation** | **U** |
-| 13 | Whether an "intercept and deny/degrade" branch exists (`mount` / `ptrace` / `setns` / `unshare`) is unproven | **U** |
-| 14 | **This report performed no performance measurement whatsoever** (no syscall latency / `mmap` / `fork` / `futex` / I-O / GPU benchmark, no native-host control group), so **no performance conclusion can be drawn** | **U** |
-| 15 | Whether `targetSdk=29` is a **necessary** condition for the architecture is unverified (targetSdk=30/31 was not tested) | **U** |
-| 16 | Whether the guest's scheduling affiliation changes over long periods or after process restarts is unknown — **only a ~6-second window after one HOME switch was observed** | **U** |
-| 17 | The **build provenance of the guest's Magisk binary was not hash-verified**; identity with the official release package cannot be asserted | **U** |
-| 18 | The **complete field set of the guest's `/proc` projection is unknown** — only 15 paths were verified to differ across the two views, which is not the same as "only these are replaced" | **U** |
+| 1 | The exact 2nd-layer seccomp strategy is undetermined (requires reading the BPF program, kernel-space info) | **U / K3** |
+| 2 | The primary host carrier has no P1; P1 observations come from an **early comparison carrier (archived)** and were not reproduced on the current carrier | — |
+| 3 | The guest instance **may not be factory-fresh** | — |
+| 4 | Guest kernel version, CPU model, and RAM are **disguised values**, unusable for hardware inference | — |
+| 5 | The semantics of some `readonly.bin` header fields are unparsed | **U / K3** |
+| 6 | **This report performs no performance measurement** (no syscall latency / `mmap` / `fork` / GPU benchmark) | **U / K3** |
+| 7 | Network conclusions are limited to the **socket control plane**; **routing, DNS, VPN paths unanalyzed** (host may have a global VPN) | **U / K3** |
+| 8 | Mount-tree internal data structures and IPC message format are unparsed | **U / K3** |
+| 9 | Whether guest scheduling ownership changes over long periods or after process restarts is **observed only in one ~6-second window** | **U / K3** |
+| 10 | No hash comparison of the guest Magisk binary against an official build | **U / K3** |
+| 11 | The **complete field set** of guest `/proc` projection is unknown | **U / K3** |
+| 12 | **During forensics, one `bind mount /system` broke the guest `/system` projection; recovered after restarting the instance** (see §10.2) | — |
 
 ---
 
-## 8. Reproduction Commands
+## 9. Reproducible Commands
 
-> Each block is annotated with the required permission tier. **P1 blocks can only be run on
-> comparison Device B.**
+> Each block is tagged with the required permission tier.
 
 ```bash
-H=127.0.0.1:5555      # host (stock OnePlus, unrooted)
-G=127.0.0.1:6556      # guest (tap "Allow USB debugging" inside the VM)
-R=192.168.10.3:5555   # comparison host (Redmi K30, rooted) — P1 blocks only
+H=emulator-5554       # host (unrooted), or 127.0.0.1:5555
+G=127.0.0.1:6556      # guest (tap "Allow USB debugging" in the VM window)
 
-# ═══════════ P0: reproducible without root ═══════════
+# ═══════════ P0: host side (reproducible without root) ═══════════
 
-# ── Carrier eligibility ──
-adb -s $H shell 'command -v su; echo rc=$?'
-adb -s $H shell 'ls /system/bin/su /debug_ramdisk 2>&1'
-adb -s $H shell getprop | grep -E 'flavor|build.type|verifiedboot|flash.locked'
-adb -s $H shell pm list packages | grep -iE 'magisk|kernelsu|lsposed'
-
-# ── Software version ──
+# ── software version ──
 adb -s $H shell dumpsys package com.vphonegaga.titan | grep -E 'versionName|versionCode|targetSdk'
 
-# ── Topology and privileged spawning ──
+# ── process topology ──
 adb -s $H shell ps -A -o PID,PPID,USER,NAME | grep -E 'titan(32|64)_'
-adb -s $H shell 'for p in $(ps -A -o PID,NAME | grep -E "titan(32|64)_" | awk "{print \$1}"); \
-  do printf "%s %s %s\n" $p $(awk "/^Uid/{print \$2}" /proc/$p/status) \
-  $(awk "/^CapEff/{print \$2}" /proc/$p/status); done' | awk '{print $2,$3}' | sort | uniq -c
 
 # ── ★ seccomp layering (core evidence) ──
-echo "host control:"
-adb -s $H shell "cat /proc/$(adb -s $H shell pidof com.android.systemui)/status" | grep Seccomp
-echo "entire guest tree:"
 adb -s $H shell 'for p in $(ps -A -o PID,NAME|grep -E "titan(32|64)_"|awk "{print \$1}"); \
-  do awk "/^Seccomp/{print}" /proc/$p/status; done' | sort | uniq -c
-# expect: host 1 filter; every guest process 2
+  do awk "/^Seccomp_filters/{print}" /proc/$p/status; done' | sort | uniq -c
+# expected: Seccomp = 2 for all; Seccomp_filters = 2 for all (host app = 1)
 
-# ── Scheduling-tier controlled experiment ──
-for P in <APP> <INSTANCE1> <KERNEL>; do
-  printf "%-8s " $P; adb -s $H shell "grep cpuset /proc/$P/cgroup"
-  echo "         oom=$(adb -s $H shell cat /proc/$P/oom_score_adj)"
-done
-adb -s $H shell input keyevent KEYCODE_HOME      # background (interrupts the VM foreground)
-sleep 6
-# repeat the loop above → observe whether the guest tree follows instance1
-adb -s $H shell am start -n com.vphonegaga.titan/com.vphonegaga.titan.MyNativeActivity1  # restore
-
-# ── ★ Peripheral proxy channel enumeration (no root needed) ──
+# ── ★ IPC channel enumeration ──
 adb -s $H shell cat /proc/net/unix | grep -oE '@titan-pipe-1-[a-zA-Z0-9:=]*' | sort -u
 adb -s $H shell cat /proc/net/unix | grep -c '@titan-process-worker-server'
-
-# ── Permission boundary confirmation (why root is required for some items) ──
-adb -s $H shell 'readlink /proc/<PID>/exe'   # empty output
-adb -s $H shell 'ls /proc/<PID>/ns'          # Permission denied
-adb -s $H shell 'head -1 /proc/<PID>/maps'   # Permission denied
-adb -s $H shell 'ls /proc/<PID>/fd'          # Permission denied
-adb -s $H shell 'ls /data/data/com.vphonegaga.titan'   # Permission denied
-adb -s $H shell 'ls /data/app/*/com.vphonegaga.titan*/lib/arm64'  # Permission denied
-
-
-# ═══════════ P1: requires host root (comparison Device R only) ═══════════
-
-# ── Namespaces (proving no isolation) ──
-adb -s $R shell "su -c 'ls /proc/<PID>/ns/; grep -c NSpid /proc/<PID>/status'"
-
-# ── Real executable ──
-adb -s $R shell "su -c 'readlink /proc/<PID>/exe'"
-
-# ── Storage container format (both byte orders) ──
-B=/data/data/com.vphonegaga.titan/files/instance1/androidfs_10.0.0
-adb -s $R shell "su -c 'od -A d -t x1 -N 32 $B/system/readonly.bin'"   # 41 54 49 54 = [REDACTED]
-adb -s $R shell "su -c 'od -A d -t x1 $B/system/superblock.bin'"       # 42 50 55 53 = [REDACTED]
-adb -s $R shell "su -c 'od -A d -t x1 -N 32 $B/androidfs.bin'"         # 53 46 44 41 = [REDACTED]
-adb -s $R shell "su -c 'od -A d -t x1 -N 64 $B/root/block.img'"        # 41 4e 44 52 4f 49 44 21 = [REDACTED]
-adb -s $R shell "su -c 'od -x -N 32 $B/system/readonly.bin'"           # 5441 5449 = [REDACTED] (od -x view)
-
-# ── Mappings and descriptors ──
-adb -s $R shell "su -c 'grep readonly.bin /proc/<PID>/maps | head'"    # verify real mmap
-adb -s $R shell "su -c 'ls -l /proc/<PID>/fd | grep -oE \"memfd:[^ ]*\" | sort -u'"
-adb -s $R shell "su -c 'ls -l /proc/<PID>/fd | grep -oE \"(/dev|/dmabuf)[^ ]*\" | sort | uniq -c'"
-
-# ── APK component metadata (no instruction analysis) ──
-L=/data/app/*/com.vphonegaga.titan*/lib/arm64
-adb -s $R shell "su -c '[REDACTED] -lW $L/libloader64.so | head -20'"     # INTERP=/system/bin/linker64
-adb -s $R shell "su -c '[REDACTED] --[REDACTED] -W $L/libuserkernel64.so | awk \"{print \\\$7}\" | sort | uniq -c'"
-adb -s $R shell "su -c 'strings -a $L/libuserkernel64.so | grep -E \"titan-|vma:|fscache\" | sort -u'"
-adb -s $R shell "su -c 'strings -a $L/libp7zip.so | grep -E \"^7z|LZMA|AES|BCJ\" | sort -u'"
-
-# ── Log ciphertext verification ──
-adb -s $R shell "su -c 'strings -a /sdcard/Android/data/com.vphonegaga.titan/files/instance1/logs/1/UserKernel.log | head'"
 
 
 # ═══════════ P2: guest-internal shell ═══════════
 
-# ── ★★ Two-sided comparison (same process, two views) ──
-# guest side (projected)
+# ── two-sided comparison (same process, two views) ──
 adb -s $G shell 'su -c id'
 adb -s $G shell 'cat /proc/self/status | grep -E "Uid|CapEff|Seccomp|NoNewPrivs"'
-adb -s $G shell 'cat /proc/cpuinfo | grep "CPU part" | head -2'
-adb -s $G shell 'grep MemTotal /proc/meminfo; cat /proc/uptime; cat /proc/version'
-# host side (truth) — first map titan64_<virtual PID> to its real host PID with ps
-adb -s $H shell ps -A -o PID,NAME | grep -E 'titan64_(1|43|60):'
-adb -s $H shell 'cat /proc/<HOST_PID>/status | grep -E "Uid|CapEff|Seccomp|NoNewPrivs"'
-adb -s $H shell 'cat /proc/cpuinfo | grep "CPU part" | head -2'
-adb -s $H shell 'grep MemTotal /proc/meminfo'
+adb -s $G shell 'grep CPU /proc/cpuinfo | head -3; grep MemTotal /proc/meminfo; cat /proc/uptime; cat /proc/version'
 
-# ── ★ Self-incriminating fabrication check ──
+# ── self-evident fabrication: one state, multiple answers ──
 adb -s $G shell 'head -2 /proc/self/mountinfo; head -2 /proc/mounts; mount | head -2'
-adb -s $G shell 'ls -l /proc/1/exe; ls -l /proc/self/fd'   # mode bits and fd format
-adb -s $G shell 'ls /proc | grep -E "^[0-9]+$" | wc -l; ls /proc | grep -E "^[0-9]+$" | sort -n | tail -1'
 
-# ── Guest root shape ──
+# ── ★ mount capability: guest-side uid sweep (valid experiment) ──
+# launch as root in the guest, setuid to target uid, then mount
+# measured: uid 0/1000/2000/10000/10123 all succeed at mount(tmpfs); umount succeeds only for uid 0
+adb -s $G push mntuid /data/local/tmp/
+for u in 0 2000 10000; do adb -s $G shell "su -c '/data/local/tmp/mntuid $u'"; done
+# whitelist: guest /proc/filesystems has only 7 entries
+adb -s $G shell cat /proc/filesystems
+# note: the host-side EACCES is a reference only, not evidence (no host root, no userns allowed)
+
+# ── ★ network controlled experiment ──
+# create a listening socket in the guest, query from the host
+adb -s $G shell 'toybox nc -l -p 4660 &'
+adb -s $H shell "cat /proc/net/tcp | grep -i '1234'"       # should appear, uid=10383
+adb -s $G shell "cat /proc/net/tcp"                        # should be empty (projected)
+
+# ── guest root form ──
 adb -s $G shell 'magisk -v; magisk -V; ls -l /sbin/magiskinit'
-adb -s $G shell 'su -c "ls -la /data/adb/ /data/adb/modules/"'
 ```
 
 ---
 
-## 9. Publication Guidance
+## 10. Problems, Incidents, and Corrections Encountered During Forensics (honest record)
 
-### 9.1 Cleared for publication
+This section records, in full, the **problems encountered, mistakes made, and earlier writings that
+were overturned** during this round of forensics. The purpose is not a disclaimer but to preserve
+credibility: **it is normal for a retrospective report to contain errors; what matters is writing the
+problems down and explaining how they were corrected.**
 
-- The entire report is **behavioral observation**; nothing was disassembled or decompiled.
-  It falls under architecture analysis and interoperability research.
-- All observation was performed on owned devices and an owned licensed copy.
-- Recommendation: retain the AI-assistance disclosure in §1.1 and the reproduction commands in
-  §8 — **this is the primary source of the report's credibility**.
+### 10.1 Accidentally deleting the adb key broke the connection authorization 【recovered】
 
-### 9.2 Disclosures that must be retained
+- **Problem**: while troubleshooting the guest adb `unauthorized` state, `~/.android/adbkey*` was
+  deleted and the adb server restarted. This invalidated all established authorizations and briefly
+  interrupted guest adb access.
+- **Impact**: broke the existing forensics connection; authorization had to be re-established.
+- **Correction**: afterwards only `adb kill-server` / `adb connect` are used; **keys are no longer deleted**.
+  Recovered after re-authorization.
+- **Lesson**: the first tool for connection troubleshooting is restarting the server, not clearing credentials.
 
-1. **AI-assistance disclosure** (§1.1), including the two self-corrections.
-2. **The permission-tier table** (§1.2 / §1.3), stating for each conclusion whether it came from
-   P0 / P1 / P2. **In particular**: the primary carrier has no P1 tier, so every root-requiring
-   observation came from comparison Device B.
-3. **Both byte orders of the magics** (`[REDACTED]/[REDACTED]/[REDACTED]` and the raw `[REDACTED]/[REDACTED]/[REDACTED]`).
-4. **Environmental confounders** (§2.4): Device A has no usable root but had KernelSU installed;
-   Device B is rooted with reset properties whose `getprop` output is untrustworthy.
-5. **Evidence grades A/B/C/U on every claim**, and all 10 limitations in §7.
+### 10.2 A `bind mount` broke the guest `/system` projection 【recovered】
 
-### 9.3 Wording standards
+- **Incident**: after `bind mount /system` onto an *already-stacked* target (already carrying
+  `tmpfs`/`proc`), the guest's `/system` projection failed (`/system/bin/sh`, `/system/bin/toybox`,
+  `/system/build.prop` all became `No such file`; `adb shell` could not start, since it always execs
+  `/system/bin/sh`).
+- **Cause**: the guest's userspace mount implementation mishandles "bind-mounting onto an
+  already-mounted target", overwriting/unbinding the source `/system` VFS mapping. This is an
+  **in-memory state corruption**; container files on disk were untouched.
+- **Recovery**: restarting the guest instance fully restored it (`/system/bin/sh` 299616 B,
+  `/system/bin/toybox` back; residual mounts cleared; mount table back to ~48 entries).
+- **Follow-up handling**: mount tests now use `/data/local/tmp` as the target, `umount` immediately
+  after each test, and **no `bind mount` onto system paths**.
+- **Methodological significance**: the incident itself proves that **the guest's mount state is
+  userspace in-memory state, not host-kernel state**; restarting the app fully resets it, and the host
+  kernel never held those mounts at all.
 
-Delete all wording implying bypass, cracking, deception, or defeating protections; replace with
-outcome descriptions:
+### 10.3 A NULL-pointer test program polluted the data 【self-caught and corrected】
 
-| ❌ Do not write | ✅ Write instead |
-|---|---|
-| bypasses native detection | the second seccomp filter causes `getuid`/`capget` to return virtual values |
-| breaks the single-app process-count limit | the guest tree inherits the `top-app` tier at startup and retains it after host demotion |
-| adapts to Android 12+ phantom process killing | guest processes have `oom_score_adj` 0, below their host container process's 101 |
-| deceives the host scheduler | guest processes acquire, at startup, a scheduling affiliation independent of `instance1`'s later state changes |
+- **Problem**: one version of the `setsockopt` test passed `optval` as `0` (NULL), causing options such
+  as `SO_REUSEADDR` that should succeed to all return `EINVAL`.
+- **Impact**: uncorrected, it would have wrongly concluded "most socket options are unsupported".
+- **Correction**: the program was rewritten with valid pointers and the **two-sided comparison** redone,
+  yielding the correct conclusion (only some `IPPROTO_IP` options are intercepted).
+- **Lesson**: the test program's own bugs and the projection layer's behavior must be told apart by
+  **controlled experiments**.
 
-### 9.4 Do not publish
+### 10.4 P1 (highest-privilege) observation archive was briefly deleted by mistake 【restored in this version】
 
-- Any **method for bypassing** the second seccomp filter.
-- Any **extraction, offset table, or repacking procedure** for `readonly.bin`.
-- Any method to make the **guest adbd skip authentication**.
-- Implementation details of the **virtual UID / capability forgery**.
-- Paths to **private data readable inside the guest**.
+- **Problem**: when drafting v2.0, because the current machine had only P0 + P2 tiers, the text stated
+  "this report has no P1 tier" and **deleted the P1 observations obtained earlier on a root-enabled
+  comparison carrier**.
+- **Correction**: **P1 observations must not be deleted just because the carrier is absent.** This
+  version restores them in full: §2.2 (comparison carrier), §4.2 (namespaces / mounts),
+  §4.4 (`maps` / `fd` / `memfd` / `strings`), §4.9 (storage), §4.13 (ELF loader).
+- **Lesson**: deleting evidence is far more dangerous than adding conclusions; a report should preserve
+  its historical forensics record.
 
-> Principle: **"what was observed" may be published; "how to rewrite it" must not be.**
+### 10.5 This version's own experimental-design flaw 【corrected】
 
-### 9.5 Incremental value of this report
+#### 10.5.1 "Host EACCES vs guest ret=0" is an invalid control
 
-| Increment | Description |
-|---|---|
-| **Two-sided table** (§5.2) | Two self-descriptions of one process. Unobtainable by external observation alone — the real moat |
-| **`Seccomp_filters` 1→2 layering** (§4.3) | Uses a kernel field never previously cited to turn "syscall interception" from conjecture into a countable, reproducible experiment |
-| **Self-incriminating fabrication artifacts** (§4.5) | Proves fabrication using the product's own bugs — stronger than any inference |
-| **`@titan-pipe-*` channel enumeration** (§4.6) | The real peripheral-proxy mechanism, obtainable without root |
-| **Permission-tier system** (§1.2/§1.3) | Clearly separates unrooted from rooted evidence sources |
-| **`targetSdk=29`** (§3) | Identifies an **important compatibility condition** of the current route (no claim that it is necessary) |
-| **Corrections table** (§6) | Proactively lists overturned conclusions, including two of this report's own AI-assisted misjudgments |
+- **Problem**: the v2.0 draft's §4.6.1 treated "host uid 2000 gets `EACCES` vs guest uid 2000 gets
+  `ret=0`" as a decisive controlled experiment.
+- **Why it is invalid**: the host's uid 2000 getting `EACCES` from `mount()` is the **necessary outcome
+  of lacking `CAP_SYS_ADMIN`**, unrelated to any projection layer. The comparison only proves
+  "**the two sides' permission models differ**", not "the guest's `mount()` cannot be executed by the
+  host kernel" — because in that comparison the host kernel **was never allowed to execute**.
+  Mistaking a **permission difference** for an **architecture difference** is result confusion.
+- **No fair host-side control is constructible here** (measured): the primary carrier has no root;
+  `unshare -Urm` → `Invalid argument`; `unshare -m` → `Operation not permitted`.
+- **Correction**: §4.6.1 has been rewritten as a **guest-side uid sweep** (any uid, incl. 10000, can
+  `mount(tmpfs)`), and §4.6.2 explicitly states the host-side failure is **a reference only, not
+  evidence**.
+- **Lesson**: a controlled experiment must keep the tested factor **at a state where success is
+  attainable on both sides**; when one side can never succeed due to environmental limits, the
+  difference reflects the environment, not the mechanism under test.
+
+### 10.6 Cognitive biases in the earlier analysis 【corrected in this version】
+
+| # | Earlier bias | Correction in this version | Nature |
+|---|---|---|---|
+| 1 | "Host mount table shows nothing ⇒ no mount capability" | guest uid 10000 can still `mount(tmpfs)` + whitelist + host mount table unchanged | incomplete methodology |
+| 2 | "Can reach network ⇒ reuses host stack" | hybrid model (real socket + control-plane interception) | reverse-inferring implementation from result |
+| 3 | "Simple library hijack, handled in place" | cross-component IPC + userspace VFS + mount tree | oversimplified model |
+| 4 | "Host cannot see it ⇒ the function does not exist" | userspace builds the semantics; the host is inherently blind | paradigm blind spot |
+| 5 | treating A/B/C as "three internal implementation branches" | changed to "three externally observable processing paths" | overreaching wording |
+
+### 10.7 Still-open problems (undetermined)
+
+- the exact 2nd-layer seccomp strategy (requires reading the BPF program);
+- the IPC message binary protocol;
+- the mount tree's internal data structures;
+- routing / DNS / VPN paths (this round measured only the socket control plane).
+
+> **Summary**: 10.1–10.4 are **actual problems encountered during forensics**, all handled or corrected;
+> 10.5 reminds the reader of the systematic biases in earlier analysis. These records do not weaken the
+> report — they make the evidence chain auditable.
 
 ---
 
-*End of report. Every conclusion is reproducible with the commands in §8 under the same
-environment.*
+## 11. Publication Notes
+
+### 11.1 Publishable
+
+- The entire report is **behavioral observation + controlled experiments**, with no disassembly or
+  decompilation; it falls under architecture analysis and interoperability research.
+- Observation was performed on owned devices and an owned, licensed copy.
+- Keep the AI-assistance disclosure (§1.2) and the reproducible commands (§9) — **these are the main
+  source of this report's credibility**.
+- Keep the **K1/K2/K3 determinacy layering + controlled-experiment design** (§0, §1.1) — it is the
+  core methodology of this version.
+
+### 11.2 Declarations that must be retained
+
+1. **AI-assistance disclosure** (§1.2), including the self-correction note.
+2. **Permission-tier table** (§1.3 / §1.4), stating which tier (P0/P1/P2) yielded each conclusion;
+   **P1 observations are archived from the early comparison carrier and must be retained**.
+3. **The two magic byte orders** (`[REDACTED]/[REDACTED]/[REDACTED]` vs raw bytes `[REDACTED]/[REDACTED]/[REDACTED]`).
+4. **Environmental confounders** (§2.4).
+5. **A/B/C/U evidence grades and K1/K2/K3 determinacy levels throughout**, plus the §8 limitations.
+6. **The forensics problem/correction record** (§10), including incidents and self-corrections.
+7. **Methodological floor**: external behavior constrains but usually does not uniquely determine
+   internal implementation; **controlled experiments are the main means of upgrading U-level
+   conclusions to K1**.
+
+### 11.3 Wording rules
+
+Remove all "bypass / crack / deceive / break through" phrasing; describe results instead:
+
+| ❌ Do not write | ✅ Rewrite as |
+|---|---|
+| bypasses native detection | the 2nd seccomp filter / projection layer makes `getuid`/`capget` return virtual values |
+| breaks the per-app process-count limit | the whole guest tree inherits `top-app` at startup and stays there after host demotion |
+| adapts to ghost-process killing | guest processes have `oom_score_adj` 0, below their host container process |
+| deceives host priority | guest processes gain scheduling ownership independent of `instance1`'s later state changes at startup |
+
+### 11.4 Do not include in the report
+
+- Any **method to bypass** the 2nd seccomp filter.
+- **Extraction, offset tables, or repackaging procedures** for `readonly.bin`.
+- Any **method to make guest adbd skip authentication**.
+- **Implementation details** of virtual uid / capability fabrication.
+- **Privacy-sensitive data paths** readable inside the guest.
+
+> Principle: **"what was observed" may be published; "how to rewrite it" is never published.**
+
+---
+
+## Appendix A · Project Files
+
+| File | Content |
+|---|---|
+| `README.md` / `README_EN.md` | forensics report (CN/EN) |
+| `ARCHITECTURE.md` | component-level architecture · measured boot timeline · open-source reproducibility assessment |
+| `重新取证报告_2026-09-23.md` | full record of this round of dual-device controlled experiments |
+| **`P1_归档_最高权限取证记录.md`** | **archive of P1 (host root) observations from the early root-enabled comparison carrier** (Chinese) |
+| `取证_2026-09-23/` | raw evidence archive (mount tables, filesystems, IPC, etc.) |
+| `一些其他错误.txt` | errata on earlier analyses' cognitive biases (mount / network / architecture model) |
+
+---
+
+*End of report. All K1 conclusions are reproducible with the §9 commands under the same environment;
+K2/K3 conclusions should be read as candidate architecture models, not confirmed internal code structure.*

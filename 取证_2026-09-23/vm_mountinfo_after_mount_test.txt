@@ -1,0 +1,57 @@
+27 26 3:7  / / rw,seclabel - rootfs rootfs rw,seclabel
+28 26 3:8  / / ro,seclabel,barrier=1 shared:2 - ext4 /dev/block/platform/host/by-name/system rw,seclabel
+29 28 0:223  / /share rw,seclabel,/storage/emulated/0/Android/data/com.vphonegaga.titan/files/instance1/shared shared:3 - sharefs none rw,seclabel
+30 28 0:0  / /dev rw,seclabel,nosuid,mode=0755 shared:4 - tmpfs tmpfs rw,seclabel
+31 30 0:0  / /dev/pts rw,seclabel shared:5 - devpts devpts rw,seclabel
+44 30 0:0  / /dev/blkio rw,seclabel,noexec,nosuid,nodev,blkio shared:17 - cgroup none rw,seclabel
+46 30 0:0  / /dev/cpuctl rw,seclabel,noexec,nosuid,nodev,cpu shared:18 - cgroup none rw,seclabel
+50 30 0:0  / /dev/cpuset rw,seclabel,noexec,nosuid,nodev shared:20 - cpuset none rw,seclabel
+52 30 0:0  / /dev/memcg rw,seclabel,noexec,nosuid,nodev,memory shared:21 - cgroup none rw,seclabel
+54 30 0:0  / /dev/stune rw,seclabel,noexec,nosuid,nodev,schedtune shared:22 - cgroup none rw,seclabel
+32 28 0:0  / /proc rw,seclabel,hidepid=2,gid=3009 shared:6 - proc proc rw,seclabel
+33 28 0:0  / /sys rw,seclabel shared:7 - sysfs sysfs rw,seclabel
+34 33 0:0  / /sys/fs/selinux rw,seclabel shared:8 - selinuxfs selinuxfs rw,seclabel
+62 33 0:0  / /sys/fs/bpf rw,seclabel,noexec,nosuid,nodev shared:24 - bpf bpf rw,seclabel
+35 28 0:0  / /mnt rw,seclabel,noexec,nosuid,nodev,mode=0755,uid=0,gid=1000 shared:9 - tmpfs tmpfs rw,seclabel
+750 35 3:9  /media /mnt/runtime/default/emulated rw,seclabel,noatime,noexec,nosuid,nodev,fsuid=1023,fsgid=1023,multiuser,derive_gid,default_normal,unshared_obb,mask=6,userid=0,gid=1015 shared:49 - sdcardfs /data/media rw,seclabel
+764 35 3:9  /media /mnt/runtime/read/emulated rw,seclabel shared:50 -  /mnt/runtime/default/emulated rw,seclabel
+778 35 3:9  /media /mnt/runtime/write/emulated rw,seclabel shared:51 -  /mnt/runtime/default/emulated rw,seclabel
+792 35 3:9  /media /mnt/runtime/full/emulated rw,seclabel shared:52 -  /mnt/runtime/default/emulated rw,seclabel
+2332 35 0:0  / /mnt/test rw,seclabel shared:56 - sysfs sysfs rw,seclabel
+2618 35 0:0  / /mnt/t2 rw,seclabel shared:63 - tmpfs tmpfs rw,seclabel
+2770 2618 0:0  / /mnt/t2 rw,seclabel shared:71 - proc proc rw,seclabel
+2808 2770 3:8  /system /mnt/t2 rw,seclabel shared:73 -  /system rw,seclabel
+2846 2808 0:0  / /mnt/t2 rw,seclabel shared:75 - proc proc rw,seclabel
+2884 2846 0:0  / /mnt/t2 rw,seclabel shared:77 -  /system rw,seclabel
+2751 35 0:0  / /mnt/t1 rw,seclabel shared:70 - tmpfs tmpfs rw,seclabel
+2789 35 0:0  / /mnt/ro ro,seclabel shared:72 - tmpfs tmpfs ro,seclabel
+2865 2789 0:0  / /mnt/ro ro,seclabel shared:76 - tmpfs tmpfs ro,seclabel
+36 28 0:0  / /apex rw,seclabel,noexec,nosuid,nodev,mode=0755,uid=0,gid=0 - tmpfs tmpfs rw,seclabel
+69 36 3:8  /system/apex/com.android.conscrypt /apex/com.android.conscrypt@290000000 rw,seclabel -  /system/apex/com.android.conscrypt rw,seclabel
+70 36 3:8  /system/apex/com.android.conscrypt /apex/com.android.conscrypt rw,seclabel -  /apex/com.android.conscrypt@290000000 rw,seclabel
+71 36 3:8  /system/apex/com.android.media /apex/com.android.media@290000000 rw,seclabel -  /system/apex/com.android.media rw,seclabel
+72 36 3:8  /system/apex/com.android.media /apex/com.android.media rw,seclabel -  /apex/com.android.media@290000000 rw,seclabel
+73 36 3:8  /system/apex/com.android.media.swcodec /apex/com.android.media.swcodec@290000000 rw,seclabel -  /system/apex/com.android.media.swcodec rw,seclabel
+74 36 3:8  /system/apex/com.android.media.swcodec /apex/com.android.media.swcodec rw,seclabel -  /apex/com.android.media.swcodec@290000000 rw,seclabel
+75 36 3:8  /system/apex/com.android.resolv /apex/com.android.resolv@290000000 rw,seclabel -  /system/apex/com.android.resolv rw,seclabel
+76 36 3:8  /system/apex/com.android.resolv /apex/com.android.resolv rw,seclabel -  /apex/com.android.resolv@290000000 rw,seclabel
+77 36 3:8  /system/apex/com.android.runtime.release /apex/com.android.runtime@1 rw,seclabel -  /system/apex/com.android.runtime.release rw,seclabel
+78 36 3:8  /system/apex/com.android.runtime.release /apex/com.android.runtime rw,seclabel -  /apex/com.android.runtime@1 rw,seclabel
+79 36 3:8  /system/apex/com.android.tzdata /apex/com.android.tzdata@290000000 rw,seclabel -  /system/apex/com.android.tzdata rw,seclabel
+80 36 3:8  /system/apex/com.android.tzdata /apex/com.android.tzdata rw,seclabel -  /apex/com.android.tzdata@290000000 rw,seclabel
+37 28 3:11  / /vendor ro,seclabel shared:11 - ext4 /dev/block/platform/host/by-name/vendor ro,seclabel
+38 28 0:0  / /sbin rw,seclabel shared:12 -  . rw,seclabel
+39 38 0:0  /magiskinit /sbin/magiskinit rw,seclabel shared:13 -  .magisk/mirror/system_root/sbin/magiskinit rw,seclabel
+40 38 0:0  /.magisk/rootdir /sbin/.magisk/rootdir rw,seclabel shared:14 -  .magisk/mirror/system_root/sbin/overlay.d rw,seclabel
+41 38 0:0  /.magisk /sbin/.magisk rw,seclabel shared:15 -  .magisk/mirror/system_root/sbin/.magisk rw,seclabel
+81 41 3:9  /adb/modules /sbin/.magisk/modules ro,seclabel -  /data/adb/modules rw,seclabel
+83 41 3:9  /adb/modules /sbin/.magisk/preinit rw,seclabel unbindable -  /data/adb/modules rw,seclabel
+85 41 0:0  / /sbin/.magisk/worker ro,seclabel,mode=755 - tmpfs worker ro,seclabel
+87 41 3:8  / /sbin/.magisk/mirror rw,seclabel -  / rw,seclabel
+48 28 0:0  / /acct rw,seclabel,noexec,nosuid,nodev,cpuacct shared:19 - cgroup none rw,seclabel
+60 28 0:0  / /config rw,seclabel,noexec,nosuid,nodev shared:23 - configfs none rw,seclabel
+64 28 3:10  / /cache rw,seclabel,noatime,nosuid,nodev shared:25 - ext4 /dev/block/mtdblock2 rw,seclabel
+66 28 0:0  /runtime/default /storage rw,seclabel shared:26 - none /mnt/runtime/default rw,seclabel
+68 28 3:9  / /data rw,seclabel,noatime,nosuid,nodev shared:27 - ext4 /dev/block/mtdblock1 rw,seclabel
+132 28 0:0  /.magisk/zygisk/app_process32 /system/bin/app_process32 rw,seclabel shared:44 -  /sbin/.magisk/zygisk/app_process32 rw,seclabel
+134 28 0:0  /.magisk/zygisk/app_process64 /system/bin/app_process64 rw,seclabel shared:45 -  /sbin/.magisk/zygisk/app_process64 rw,seclabel

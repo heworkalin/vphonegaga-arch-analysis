@@ -1,0 +1,7 @@
+nodev	rootfs
+nodev	proc
+nodev	tmpfs
+nodev	socketfs
+nodev	devpts
+nodev	sdcardfs
+nodev	selinuxfs

@@ -1,0 +1,114 @@
+  902 28274 u0_a383      titan64_2701:bash
+  920   902 u0_a383      titan64_2707:bash
+  958   920 u0_a383      titan64_2709:grep
+ 6346  1450 u0_a383      com.vphonegaga.titan
+ 8516 28274 u0_a383      titan64_3953:bash
+ 8541  8516 u0_a383      titan64_3959:bash
+ 8546  8541 u0_a383      titan64_3961:grep
+ 8876 28274 u0_a383      titan64_4008:bash
+ 8913  8876 u0_a383      titan64_4014:bash
+ 8917  8913 u0_a383      titan64_4016:grep
+ 9299 28274 u0_a383      titan64_4072:mtio
+ 9706 32409 u0_a383      titan64_4111:bash
+11573  9706 u0_a383      titan64_4138:bash
+11616 11573 u0_a383      titan64_4144:bash
+11624 11616 u0_a383      titan64_4146:grep
+11782 29817 u0_a383      titan64_4154:bash
+13073 28418 u0_a383      titan64_4197:com.android.messaging
+13444 11782 u0_a383      titan64_4268:bash
+13453 13444 u0_a383      titan64_4272:bash
+13457 13453 u0_a383      titan64_4273:su
+13465 28385 u0_a383      titan64_4277:sh
+13476 13465 u0_a383      titan64_4281:bash
+13521 28418 u0_a383      titan64_4296:com.topjohnwu.magisk
+13551 13521 u0_a383      titan64_4319:su
+13558 28385 u0_a383      titan64_4325:libbusybox.so
+13575 13558 u0_a383      titan64_4329:com.topjohnwu.magisk:root:0
+16898 28418 u0_a383      titan64_4588:com.android.settings
+22670  1453 u0_a448      com.xunmeng.pinduoduo:titan
+28146  1450 u0_a383      com.vphonegaga.titan:instance1
+28274 28146 u0_a383      titan64_0:kernel
+28302 28274 u0_a383      titan32_0:kernel
+28305 28274 u0_a383      titan64_1:init
+28310 28305 u0_a383      titan64_3:init
+28312 28305 u0_a383      titan64_4:init
+28314 28305 u0_a383      titan64_5:ueventd
+28335 28305 u0_a383      titan64_15:logd
+28337 28305 u0_a383      titan64_16:servicemanager
+28339 28305 u0_a383      titan64_17:hwservicemanager
+28341 28305 u0_a383      titan64_18:vndservicemanager
+28349 28305 u0_a383      titan64_24:vold
+28353 28305 u0_a383      titan64_26:android.hardware.keymaster@3.0-service
+28368 28305 u0_a383      titan64_35:apexd
+28385 28274 u0_a383      titan64_44:magiskd
+28410 28274 u0_a383      titan64_57:lspd
+28416 28305 u0_a383      titan64_60:netd
+28418 28305 u0_a383      titan64_61:zygote64
+28422 28302 u0_a383      titan32_62:zygote
+28424 28305 u0_a383      titan64_63:android.hidl.allocator@1.0-service
+28426 28305 u0_a383      titan64_64:android.system.suspend@1.0-service
+28428 28305 u0_a383      titan64_65:healthd
+28432 28305 u0_a383      titan64_67:android.hardware.bluetooth@1.0-service
+28433 28302 u0_a383      titan32_66:android.hardware.audio@2.0-service
+28436 28305 u0_a383      titan64_68:android.hardware.broadcastradio@1.1-service
+28444 28302 u0_a383      titan32_69:android.hardware.camera.provider@2.4-service
+28446 28305 u0_a383      titan64_73:android.hardware.configstore@1.1-service
+28448 28302 u0_a383      titan32_70:android.hardware.cas@1.1-service
+28452 28305 u0_a383      titan64_75:android.hardware.drm@1.2-service.clearkey
+28453 28302 u0_a383      titan32_74:android.hardware.drm@1.0-service
+28457 28305 u0_a383      titan64_77:android.hardware.gatekeeper@1.0-service
+28460 28305 u0_a383      titan64_79:android.hardware.gnss@1.0-service
+28463 28305 u0_a383      titan64_81:android.hardware.graphics.allocator@2.0-service
+28465 28305 u0_a383      titan64_82:android.hardware.graphics.composer@2.1-service
+28467 28305 u0_a383      titan64_83:android.hardware.health@2.0-service
+28469 28305 u0_a383      titan64_84:android.hardware.power@1.1-service
+28472 28305 u0_a383      titan64_86:android.hardware.sensors@1.0-service
+28475 28305 u0_a383      titan64_87:android.hardware.thermal@2.0-service.mock
+28477 28305 u0_a383      titan64_88:android.hardware.vibrator@1.0-service
+28479 28305 u0_a383      titan64_89:android.hardware.wifi@1.0-service
+28484 28305 u0_a383      titan64_93:ashmemd
+28487 28305 u0_a383      titan64_95:audioserver
+28489 28305 u0_a383      titan64_96:gpuservice
+28495 28305 u0_a383      titan64_100:lmkd
+28498 28305 u0_a383      titan64_102:surfaceflinger
+28504 28305 u0_a383      titan64_106:adbd
+28536 28302 u0_a383      titan32_108:cameraserver
+28538 28305 u0_a383      titan64_135:idmap2d
+28544 28305 u0_a383      titan64_136:incidentd
+28547 28302 u0_a383      titan32_129:drmserver
+28549 28305 u0_a383      titan64_141:installd
+28552 28305 u0_a383      titan64_143:keystore
+28558 28305 u0_a383      titan64_146:media.extractor
+28560 28302 u0_a383      titan32_145:mediadrmserver
+28567 28305 u0_a383      titan64_151:media.metrics
+28587 28305 u0_a383      titan64_166:statsd
+28589 28302 u0_a383      titan32_160:mediaserver
+28596 28305 u0_a383      titan64_170:storaged
+28603 28305 u0_a383      titan64_176:su
+28605 28305 u0_a383      titan64_177:wificond
+28617 28302 u0_a383      titan32_179:media.codec
+28618 28305 u0_a383      titan64_185:rild
+28625 28305 u0_a383      titan64_190:media.swcodec
+28628 28305 u0_a383      titan64_192:gatekeeperd
+28632 28305 u0_a383      titan64_195:tombstoned
+28648 28305 u0_a383      titan64_210:android.hardware.biometrics.fingerprint@2.1-service
+28704 28418 u0_a383      titan64_244:system_server
+28724 28274 u0_a383      titan64_258:zygiskd64
+28984 28418 u0_a383      titan64_441:com.android.bluetooth
+28997 28418 u0_a383      titan64_452:com.android.systemui
+29066 28302 u0_a383      titan32_510:zygiskd32
+29092 28418 u0_a383      titan64_530:com.android.networkstack
+29188 28418 u0_a383      titan64_605:com.android.phone
+29270 28422 u0_a383      titan32_666:webview_zygote
+29348 28418 u0_a383      titan64_696:android.ext.services
+29370 28418 u0_a383      titan64_709:com.android.launcher3
+29468 28305 u0_a383      titan64_795:wpa_supplicant
+29718 28418 u0_a383      titan64_976:com.android.se
+29745 28418 u0_a383      titan64_994:com.android.ims.rcsservice
+29817 28418 u0_a383      titan64_1055:bin.mt.plus
+29857 28418 u0_a383      titan64_1090:com.android.smspush
+30616 28422 u0_a383      titan32_1615:com.baidu.input_huawei
+31662 29817 u0_a383      titan64_2140:su
+31673 28385 u0_a383      titan64_2160:sh
+31765 28274 u0_a383      titan64_2222:mtio
+32409 28418 u0_a383      titan64_2550:com.termux

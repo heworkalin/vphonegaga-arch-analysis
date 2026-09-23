@@ -1,0 +1,57 @@
+rootfs / rootfs rw,seclabel 0 0
+/dev/block/platform/host/by-name/system / ext4 ro,seclabel,barrier=1 0 0
+none /share sharefs rw,seclabel,/storage/emulated/0/Android/data/com.vphonegaga.titan/files/instance1/shared 0 0
+tmpfs /dev tmpfs rw,seclabel,nosuid,mode=0755 0 0
+devpts /dev/pts devpts rw,seclabel 0 0
+none /dev/blkio cgroup rw,seclabel,noexec,nosuid,nodev,blkio 0 0
+none /dev/cpuctl cgroup rw,seclabel,noexec,nosuid,nodev,cpu 0 0
+none /dev/cpuset cpuset rw,seclabel,noexec,nosuid,nodev 0 0
+none /dev/memcg cgroup rw,seclabel,noexec,nosuid,nodev,memory 0 0
+none /dev/stune cgroup rw,seclabel,noexec,nosuid,nodev,schedtune 0 0
+proc /proc proc rw,seclabel,hidepid=2,gid=3009 0 0
+sysfs /sys sysfs rw,seclabel 0 0
+selinuxfs /sys/fs/selinux selinuxfs rw,seclabel 0 0
+bpf /sys/fs/bpf bpf rw,seclabel,noexec,nosuid,nodev 0 0
+tmpfs /mnt tmpfs rw,seclabel,noexec,nosuid,nodev,mode=0755,uid=0,gid=1000 0 0
+/data/media /mnt/runtime/default/emulated sdcardfs rw,seclabel,noatime,noexec,nosuid,nodev,fsuid=1023,fsgid=1023,multiuser,derive_gid,default_normal,unshared_obb,mask=6,userid=0,gid=1015 0 0
+/mnt/runtime/default/emulated /mnt/runtime/read/emulated  rw,seclabel 0 0
+/mnt/runtime/default/emulated /mnt/runtime/write/emulated  rw,seclabel 0 0
+/mnt/runtime/default/emulated /mnt/runtime/full/emulated  rw,seclabel 0 0
+sysfs /mnt/test sysfs rw,seclabel 0 0
+tmpfs /mnt/t2 tmpfs rw,seclabel 0 0
+proc /mnt/t2 proc rw,seclabel 0 0
+/system /mnt/t2  rw,seclabel 0 0
+proc /mnt/t2 proc rw,seclabel 0 0
+/system /mnt/t2  rw,seclabel 0 0
+tmpfs /mnt/t1 tmpfs rw,seclabel 0 0
+tmpfs /mnt/ro tmpfs ro,seclabel 0 0
+tmpfs /mnt/ro tmpfs ro,seclabel 0 0
+tmpfs /apex tmpfs rw,seclabel,noexec,nosuid,nodev,mode=0755,uid=0,gid=0 0 0
+/system/apex/com.android.conscrypt /apex/com.android.conscrypt@290000000  rw,seclabel 0 0
+/apex/com.android.conscrypt@290000000 /apex/com.android.conscrypt  rw,seclabel 0 0
+/system/apex/com.android.media /apex/com.android.media@290000000  rw,seclabel 0 0
+/apex/com.android.media@290000000 /apex/com.android.media  rw,seclabel 0 0
+/system/apex/com.android.media.swcodec /apex/com.android.media.swcodec@290000000  rw,seclabel 0 0
+/apex/com.android.media.swcodec@290000000 /apex/com.android.media.swcodec  rw,seclabel 0 0
+/system/apex/com.android.resolv /apex/com.android.resolv@290000000  rw,seclabel 0 0
+/apex/com.android.resolv@290000000 /apex/com.android.resolv  rw,seclabel 0 0
+/system/apex/com.android.runtime.release /apex/com.android.runtime@1  rw,seclabel 0 0
+/apex/com.android.runtime@1 /apex/com.android.runtime  rw,seclabel 0 0
+/system/apex/com.android.tzdata /apex/com.android.tzdata@290000000  rw,seclabel 0 0
+/apex/com.android.tzdata@290000000 /apex/com.android.tzdata  rw,seclabel 0 0
+/dev/block/platform/host/by-name/vendor /vendor ext4 ro,seclabel 0 0
+. /sbin  rw,seclabel 0 0
+.magisk/mirror/system_root/sbin/magiskinit /sbin/magiskinit  rw,seclabel 0 0
+.magisk/mirror/system_root/sbin/overlay.d /sbin/.magisk/rootdir  rw,seclabel 0 0
+.magisk/mirror/system_root/sbin/.magisk /sbin/.magisk  rw,seclabel 0 0
+/data/adb/modules /sbin/.magisk/modules  ro,seclabel 0 0
+/data/adb/modules /sbin/.magisk/preinit  rw,seclabel 0 0
+worker /sbin/.magisk/worker tmpfs ro,seclabel,mode=755 0 0
+/ /sbin/.magisk/mirror  rw,seclabel 0 0
+none /acct cgroup rw,seclabel,noexec,nosuid,nodev,cpuacct 0 0
+none /config configfs rw,seclabel,noexec,nosuid,nodev 0 0
+/dev/block/mtdblock2 /cache ext4 rw,seclabel,noatime,nosuid,nodev 0 0
+/mnt/runtime/default /storage none rw,seclabel 0 0
+/dev/block/mtdblock1 /data ext4 rw,seclabel,noatime,nosuid,nodev 0 0
+/sbin/.magisk/zygisk/app_process32 /system/bin/app_process32  rw,seclabel 0 0
+/sbin/.magisk/zygisk/app_process64 /system/bin/app_process64  rw,seclabel 0 0

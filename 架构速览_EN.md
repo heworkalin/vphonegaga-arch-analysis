@@ -7,7 +7,7 @@
 | Purpose | **Quick understanding**: what this repository says, what the idea is, and where it is strong or weak |
 | Nature | ⚠️ **Conjectural summary (K2/K3)** — a **candidate model** based on public information and black-box observation; **it does not represent the product's real implementation** |
 | Detailed version | [`README.md`](README.md) §5 Architecture Model · [`垫片分层模型_进程与线程.md`](垫片分层模型_进程与线程.md) |
-| Statement | This repository is an **unauthorized third-party analysis**; the official source prevails. Text license: [`LICENSE`](LICENSE) |
+| License | [`LICENSE`](LICENSE) (MIT) |
 
 ---
 
@@ -116,12 +116,10 @@
 
 ---
 
-## Boundaries you must remember
+## Boundaries
 
-1. This file and the whole repository are an **unauthorized third-party analysis**; **the official source prevails**.
-2. All architecture conclusions are split into three levels: **K1** measured fact · **K2/K3** inference / indistinguishable · **suggestion** design opinion.
-3. It contains **no** steps, keys, or offset tables usable to rewrite or extract anything; this repository contains **no** product source code or private images.
-4. If the vendor explicitly requests that this material not be public, we will **manually close this repository**.
+All architecture conclusions are split into three levels: **【K1】** measured fact · **【K2/K3】** inference / indistinguishable · **【suggestion】** design opinion.
+This file is a conjectural summary; for details and evidence see [`README.md`](README.md).
 
 ---
 

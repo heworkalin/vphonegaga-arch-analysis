@@ -22,24 +22,11 @@ SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-适用范围说明（重要）
+说明：本 MIT 许可适用于本仓库自有文本与测试代码。
+报告中提到的产品名称、商标、二进制、镜像及引用的公开专利，
+权利均归其各自权利人所有；本仓库不包含产品源码或私有镜像。
 
-本 MIT 许可仅适用于**本仓库作者自行撰写的分析文本、图表与测试代码**，
-不适用于任何第三方权利内容。具体而言：
+Scope note: the MIT license covers this repository's own text and test code.
+Product names, trademarks, binaries, images, and cited public patents belong to
+their respective owners; this repository contains no product source or private images.
 
-1. 报告中提及的产品名称、商标、界面、二进制、镜像等，权利归其各自权利人所有；
-   本仓库**不包含**任何产品源码、私有镜像、内部协议或可执行文件。
-2. 报告中引用的**公开专利文献**（《一种在安卓系统上运行虚拟安卓系统的方法》，
-   申请号 CN201911260873.5，公开号 CN111026449B）为公开资料，权利归其权利人所有。
-3. **若任何内容涉及商业隐私或不宜公开，一律以对应官方为准**；
-   权利人如提出异议，我们将立即关闭 / 删除相关仓库内容。
-4. 本报告为**未获授权的独立第三方分析**，一切以官方发布为准。
-
-Scope note (English)
-
-The MIT License above applies only to the analysis text, diagrams, and test code
-written by this repository's author. It does not apply to any third-party rights.
-Product names, trademarks, binaries, and images belong to their respective owners;
-this repository contains no product source code, private images, or internal
-protocols. Where anything touches commercial privacy, **the official source
-prevails**, and we will close/remove affected content upon request.

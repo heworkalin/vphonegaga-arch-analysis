@@ -8,10 +8,8 @@
 | Target | `com.vphonegaga.titan` **3.4.0** (versionCode 3688) |
 | **Quick start** | ⭐ **[中文速览](架构速览.md)** · **[English overview](架构速览_EN.md)** — one-minute overview of the idea and its trade-offs (conjectural) |
 | Official site | <https://vphoneos.com> |
-| **Authorization status** | **No authorization obtained** · independent third-party analysis · **the official source prevails** |
-| **Compliance** | if the vendor explicitly prohibits publication, we will **manually close this repository** |
-| **License** | **MIT** (**covers only this report's own text/diagrams/test code**); **commercial privacy or third-party rights are governed by the respective official source**, see [`LICENSE`](LICENSE) |
-| Related public patent | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Application No. **CN201911260873.5** · Publication No. **CN111026449B** (**public reference only; we do not hold the patent**) |
+| Related public patent | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Publication No. **CN111026449B** (public document, reference only) |
+| License | **MIT** (see [`LICENSE`](LICENSE)) |
 | Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) + **dual-device controlled experiments** |
 | Carriers | 1 host device (OnePlus PJE110) + its built-in Android 10 guest instance |
 | Permission tiers | **P0** host adbd (unrooted) · **P1** host root (**early comparison carrier only**) · **P2** guest-internal shell (shell / su) |
@@ -23,36 +21,22 @@
 
 ---
 
-## Research Object, Sources, and Statement
+## Research Object and Sources
 
-This report is an **independent third-party black-box architecture analysis**. All of its material comes from three kinds of **public or self-produced** sources:
+This report is an **independent third-party architecture analysis**. Sources:
 
-| # | Material | Specific source | Nature |
+| # | Material | Source | Nature |
 |---|---|---|---|
-| 1 | **The application** | The commercially distributed app `com.vphonegaga.titan` 3.4.0; official site <https://vphoneos.com> | publicly obtainable |
-| 2 | **Public patent document** | 《一种在安卓系统上运行虚拟安卓系统的方法》 ("A method for running a virtual Android system on an Android system")<br>Application No. **CN201911260873.5** · Publication No. **CN111026449B**<br>Applicant: 深圳市智多互动科技有限公司 · Inventors: 黄源超 / 何家明 / 龙海<br>Filed 2019-12-10 · Granted 2024-04-19 | public document (freely available to anyone) |
-| 3 | **Black-box observations** | `adb shell` / `ps` / `cat /proc` / self-compiled raw-syscall test programs on owned devices | self-produced measurements |
+| 1 | **The application** | The publicly distributed `com.vphonegaga.titan` 3.4.0 · official site <https://vphoneos.com> | publicly obtainable |
+| 2 | **Public patent** | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Application No. CN201911260873.5 · Publication No. **CN111026449B** | public document |
+| 3 | **Observations** | `adb` / `ps` / `/proc` / self-compiled test programs on owned devices | self-produced |
 
-**Academic positioning**: this report belongs to **Black-box Architecture Reverse Reconstruction** — the same paradigm as classic systems research that infers internal design from external measurement.
+**Method**: **system-behavior observation only (black box)**. Every judgment about internal architecture is a **K2/K3 candidate model**
+and does not represent the product's real implementation; everything about the product is governed by official releases.
 
-### Disclaimer and Compliance Statement (read first)
+**Determinacy layering**: 【**K1**】 measured fact · 【**K2/K3**】 inference · 【**suggestion**】 design opinion.
 
-> **Not authorized · Third-party analysis only · The official source prevails · We comply with the vendor's wishes**
-
-1. **No authorization obtained.** This report is an **independent third-party analysis with no authorization whatsoever**. We have **no affiliation, partnership, authorization, agency, or endorsement relationship** with 深圳市智多互动科技有限公司 or the VPhoneGaGa vendor; the content does not represent the vendor's position.
-2. **Analysis and conjecture only.** This report is a **third-party analysis and conjecture** based on public information, discussing "what its logic **might roughly** be". **It does not represent, and must not be read as, a confirmed statement of how the product is actually implemented**; any conclusion may be mistaken.
-3. **The official source prevails.** This report **is not an official statement or technical document**. The product's features, architecture, and behavior are **governed solely by official releases**.
-4. **We comply with the vendor's wishes.** **If the vendor explicitly requests that this material not be public**, we will **manually close this repository** (delete or archive it).
-5. **Sources**: only the publicly distributed application, a public patent document (CN111026449B), and purely black-box observations on owned devices.
-6. **Method scope**: system-behavior observation only, with **no disassembly or decompilation**; no private binary or image internals were parsed.
-7. **Nature of the model**: the architecture model here **does not represent** the product's real internal source code or original design document; it serves only to explain observed external behavior.
-8. **Citing ≠ holding**: citing public patent information **≠** holding the patent.
-9. **Determinacy layering**: 【K1】 measured fact · 【K2/K3】 inference · 【suggestion】 this report's design opinion.
-10. **License**: this report's own text/diagrams/test code are under the **MIT** license (see [`LICENSE`](LICENSE));
-    **anything touching commercial privacy or third-party rights is governed by the respective official source**.
-
-> **Principle**: this report answers only three things — **① what semantics does it exhibit externally?** (K1) · **② what architecture model best fits these behaviors?** (K2/K3) · **③ where does black-box methodology stop?**
-> It provides a **logical map of system design**, not **engineering blueprints for replication**.
+> This is an independent third-party analysis and does not represent the vendor's position. **If the vendor requests it, this repository can be closed.**
 
 ---
 
@@ -189,13 +173,10 @@ design in §1.1, and the determinacy layering in §0 — not from anyone's autho
 No disassembly of any SO/DEX. No decompilation. No IDA / Ghidra / Frida / Xposed.
 No private image internals were parsed. **No packet capture, routing, or traffic analysis of any kind.**
 
-### 1.7 Compliance
+### 1.7 Observation environment
 
-- All observation was performed on **owned devices and an owned, licensed copy**.
-- This report answers only "what semantics does it exhibit externally" and "what architecture model best fits"; it is **architecture analysis and interoperability research (logical model reconstruction)**.
-- Sources, public-patent citation, academic positioning, and the research-boundary statement appear in the front-matter section **"Research Object, Sources, and Statement"**.
-- **Citing public patent information ≠ holding the patent.**
-- This is an **unauthorized third-party analysis**; the official source prevails.
+- All observation was performed on **owned devices**, using public system commands (`ps` / `/proc`) and self-written test programs.
+- Sources and determinacy layering are in the front-matter section **"Research Object and Sources"**.
 
 ### 1.8 Evidence grading and determinacy levels
 

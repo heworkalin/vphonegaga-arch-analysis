@@ -43,15 +43,15 @@ This report is an **independent third-party black-box architecture analysis**. A
 3. **The official source prevails.** This report **is not an official statement or technical document**. The product's features, architecture, and behavior are **governed solely by official releases**.
 4. **We comply with the vendor's wishes.** **If the vendor explicitly requests that this material not be public**, we will **manually close this repository** (delete or archive it).
 5. **Sources**: only the publicly distributed application, a public patent document (CN111026449B), and purely black-box observations on owned devices.
-6. **Not used**: no disassembly or decompilation tools; no access to, parsing of, or extraction of any private binary code, encrypted image, or internal communication protocol.
+6. **Method scope**: system-behavior observation only, with **no disassembly or decompilation**; no private binary or image internals were parsed.
 7. **Nature of the model**: the architecture model here **does not represent** the product's real internal source code or original design document; it serves only to explain observed external behavior.
 8. **Citing ≠ holding**: citing public patent information **≠** holding the patent.
 9. **Determinacy layering**: 【K1】 measured fact · 【K2/K3】 inference · 【suggestion】 this report's design opinion.
 10. **License**: this report's own text/diagrams/test code are under the **MIT** license (see [`LICENSE`](LICENSE));
     **anything touching commercial privacy or third-party rights is governed by the respective official source**.
 
-> **Principle**: describe "what was observed", never "how to bypass / rewrite / extract".
-> This report provides a **logical map of system design**, not **engineering blueprints for replication**.
+> **Principle**: this report answers only three things — **① what semantics does it exhibit externally?** (K1) · **② what architecture model best fits these behaviors?** (K2/K3) · **③ where does black-box methodology stop?**
+> It provides a **logical map of system design**, not **engineering blueprints for replication**.
 
 ---
 
@@ -116,7 +116,7 @@ implementation." This version supplies the **experimental design that breaks tha
 | Design element | Description |
 |---|---|
 | Test payload | `-nostdlib -static` raw-assembly syscall program (no libc, no dynamic linking, no compiler runtime) |
-| Interference removed | Bypasses libc wrappers and issues `svc #0` directly, so what is observed is kernel/projection behavior, not library behavior |
+| Interference removed | Issues `svc #0` directly without libc wrappers, so what is observed is kernel/projection behavior, not library behavior |
 | Control group | Host (real Linux 5.15 kernel, shell uid 2000) |
 | Experimental group | Guest (projection layer, shell uid 2000 / su uid 0) |
 | Decision rule | Same UID, same path, same binary, different result ⇒ that semantic is decided by userspace |
@@ -189,17 +189,15 @@ design in §1.1, and the determinacy layering in §0 — not from anyone's autho
 ### 1.6 Techniques explicitly *not* used
 
 No disassembly of any SO/DEX. No decompilation. No IDA / Ghidra / Frida / Xposed.
-No parsing of ELF instructions inside `readonly.bin`. No attempt to extract, decrypt, or repack any
-image. **No packet capture, routing, or traffic analysis of any kind.**
+No private image internals were parsed. **No packet capture, routing, or traffic analysis of any kind.**
 
 ### 1.7 Compliance
 
 - All observation was performed on **owned devices and an owned, licensed copy**.
-- This report describes **what was observed**, never **how to circumvent, patch, or extract**.
-- The report contains **no** steps, keys, or offset tables usable to defeat the product's protection.
-- This constitutes **architecture analysis and interoperability research**, not cracking.
+- This report answers only "what semantics does it exhibit externally" and "what architecture model best fits"; it is **architecture analysis and interoperability research (logical model reconstruction)**.
 - Sources, public-patent citation, academic positioning, and the research-boundary statement appear in the front-matter section **"Research Object, Sources, and Statement"**.
 - **Citing public patent information ≠ holding the patent.**
+- This is an **unauthorized third-party analysis**; the official source prevails.
 
 ### 1.8 Evidence grading and determinacy levels
 
@@ -1291,27 +1289,6 @@ problems down and explaining how they were corrected.**
 7. **Methodological floor**: external behavior constrains but usually does not uniquely determine
    internal implementation; **controlled experiments are the main means of upgrading U-level
    conclusions to K1**.
-
-### 11.3 Wording rules
-
-Remove all "bypass / crack / deceive / break through" phrasing; describe results instead:
-
-| ❌ Do not write | ✅ Rewrite as |
-|---|---|
-| bypasses native detection | the 2nd seccomp filter / projection layer makes `getuid`/`capget` return virtual values |
-| breaks the per-app process-count limit | the whole guest tree inherits `top-app` at startup and stays there after host demotion |
-| adapts to ghost-process killing | guest processes have `oom_score_adj` 0, below their host container process |
-| deceives host priority | guest processes gain scheduling ownership independent of `instance1`'s later state changes at startup |
-
-### 11.4 Do not include in the report
-
-- Any **method to bypass** the 2nd seccomp filter.
-- **Extraction, offset tables, or repackaging procedures** for `readonly.bin`.
-- Any **method to make guest adbd skip authentication**.
-- **Implementation details** of virtual uid / capability fabrication.
-- **Privacy-sensitive data paths** readable inside the guest.
-
-> Principle: **"what was observed" may be published; "how to rewrite it" is never published.**
 
 ---
 

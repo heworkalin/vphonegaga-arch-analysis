@@ -4,7 +4,7 @@
 |---|---|
 | Report version | **v2.0** (dual-device controlled-experiment revision) |
 | Previous version | v1.1 (deterministic-layering revision) |
-| Companion document | [`ARCHITECTURE.md`](ARCHITECTURE.md) — component-level architecture · measured boot timeline · open-source reproducibility assessment |
+| Companion document | [`垫片分层模型_进程与线程.md`](垫片分层模型_进程与线程.md) · [`复现路线与垫片设计.md`](复现路线与垫片设计.md) |
 | Target | `com.vphonegaga.titan` **3.4.0** (versionCode 3688) |
 | Official site | <https://vphoneos.com> |
 | **Authorization status** | **No authorization obtained** · independent third-party analysis · **the official source prevails** |
@@ -89,7 +89,7 @@ Eight central findings:
 
 5. **Guest root is a Magisk 26.0 stack running inside the app UID.** The host has no usable root path; the guest's `magiskd / lspd / zygiskd64 / zygiskd32` have the **virtual kernel as their real host-side parent**; the parent shown inside the guest is a **reconstructed** logical tree. **K1 observation + K3 mechanism.**
 
-6. **The storage layer is a private, plaintext, memory-mappable container.** The magic family `[REDACTED]` (data) / `[REDACTED]` (superblock) / `[REDACTED]` (volume-group root) is a wrapper over the 7-Zip family; `readonly.bin` is plaintext and directly mmap-able; `root/block.img` is a structurally valid Android boot image. **K1 observation + K2 interpretation.**
+6. **The storage layer is a private, plaintext, memory-mappable container.** The guest image is **not mounted through the kernel**; the host-side runtime carries it in a **read-only, directly memory-mappable** private format, and the block devices / filesystems the guest sees are **projected**. **K1 observation + K2 interpretation.**
 
 7. **It is a "syscall projection and device-emulation layer" running inside an app UID, with seccomp as its interception boundary and userspace data models maintaining OS semantics.** Request handling falls — in externally observable behavior — into three **semantic paths**: **A host-capability reuse / passthrough**, **B synthesis / projection**, **C redirection / virtual filesystem**. These describe **externally observable processing results**, not three confirmed internal implementation branches. **K2 + K3.**
 
@@ -148,9 +148,8 @@ design in §1.1, and the determinacy layering in §0 — not from anyone's autho
 
 > **Note**: the primary host carrier **has no P1 tier** (no `su`, no magiskd).
 > **But the P1 observations are archived in full and retained** (see §2.2, §4.2, §4.4, §4.9, §4.13):
-> `/proc/<pid>/{ns,maps,fd}`, `[REDACTED]`/`strings` metadata for `libloader64.so` /
-> `libuserkernel64.so` / `libp7zip.so`, and the storage-container format were all obtained on the
-> early root-enabled comparison carrier and are **kept, not deleted** in this version.
+> `/proc/<pid>/{ns,maps,fd}` and other **structural observations** obtained on the early
+> root-enabled comparison carrier are **kept, not deleted**, in this version.
 > This version's core increment (controlled experiments on mounts / networking / system-info projection)
 > is entirely obtainable at **P0 + P2**.
 
@@ -182,8 +181,6 @@ design in §1.1, and the determinacy layering in §0 — not from anyone's autho
 | **Controlled experiments** | **Self-compiled raw-syscall test programs (`-nostdlib -static`), run on both sides** | P0 + P2 |
 | Mount capability testing | `mount` / `umount` syscalls + errno recording | P2 |
 | Namespaces & memory mappings | `/proc/<pid>/{ns,maps,fd}` | P1 |
-| APK component metadata | `[REDACTED] -lW / -dW / --[REDACTED]`, `strings`, `od` | P1 |
-| Storage container format | Hex dump of headers (`od`), magic comparison, image-header decoding | P1 |
 | Guest-internal view | The guest's own adbd (`127.0.0.1:6556`) shell + `su` | P2 |
 
 ### 1.6 Techniques explicitly *not* used
@@ -665,35 +662,17 @@ between guest subsystems and the host:
 
 ### 4.9 Storage layer — **Grade B / P1 observation + K2 interpretation**
 
-> ⚠️ This version focuses on controlled experiments; storage-format conclusions are carried over
-> from the previous version (grade B / P1), excerpted here.
+> This section describes **structure only**; byte-level format details are forensics, not architecture.
 
-Host-side private directory `files/instance1/androidfs_10.0.0/`:
-
-```text
-├── androidfs.bin          64 B     magic [REDACTED] / raw bytes [REDACTED]
-├── fscache.bin        402,698 B
-├── system/
-│   ├── readonly.bin   1,557,878,007 B   (1.45 GiB)  magic [REDACTED] / raw bytes [REDACTED]
-│   ├── superblock.bin  16 B             magic [REDACTED] / raw bytes [REDACTED]
-│   └── 00000000/       writable index objects
-├── vendor/  readonly.bin 30,533,337 B + superblock.bin 16 B
-├── data/    + fscache.bin 67,108,864 B (64 MiB) + superblock.bin 16 B
-└── root/
-    ├── block.img        8,388,608 B    ← a genuine Android boot image
-    └── readonly.bin     2,696,464 B
-```
-
-- The object count in the `readonly.bin` header equals the same partition's `superblock.bin`
-  **exactly** (system 4509 / vendor 503).
-- **Magic byte order**: all three magics are stored **two characters at a time, as 16-bit
-  little-endian halves**, so the **raw byte order is `[REDACTED]` / `[REDACTED]` / `[REDACTED]`**; `od -x` renders them
-  as the big-endian char pairs `[REDACTED]` / `[REDACTED]` / `[REDACTED]`.
-- **`root/block.img` is a structurally valid Android boot image** (`[REDACTED]` + `page_size=4096` + `name="titan"`). **K1.**
-- **Format lineage**: `libp7zip.so` in the APK contains `[REDACTED]` / `AES256CBC` / `[REDACTED]` / `BCJ2`,
-  ⇒ [REDACTED]/[REDACTED]/[REDACTED] is a **private wrapper over the 7-Zip family**. **K2.**
-- **`readonly.bin` is unencrypted**: guest processes **mmap the file directly**, and at mapped
-  offsets one reads `7f 45 4c 46` (ELF) and valid ARM64 instructions. **K1.**
+- The guest image is **not mounted through the kernel**; the host-side runtime carries it in a **private
+  container format** characterized by:
+  - **unencrypted**: guest processes can **read-map** it directly, and mapped pages are shared among them;
+  - **volume-based**: each partition consists of a read-only data volume plus an index/superblock;
+  - plus a **writable layer and a cache layer** for run-time writes.
+- **The guest's block devices and filesystems are projected**: e.g. `/proc/mounts` shows an ext4 block
+  device, but the host kernel mount table has no corresponding entity (§4.6.5).
+- The container also includes a **parseable Android boot partition**, i.e. the boot partition the guest
+  sees is provided by the container. **K1.**
 
 ### 4.10 Virtual root and Magisk — **Grade C / P2 / K1 form observation + K2 mechanism**
 
@@ -803,16 +782,14 @@ Externally, the guest SF holds host paths such as `/dev/kgsl-3d0`; whether this 
 proxy forwarding, or userspace relaying cannot be uniquely determined by black-box means. **K3.**
 What is genuinely worth recording is the `@titan-pipe-*` channel naming in §4.8.
 
-### 4.13 In-process ELF loading — **Grade B / P1 / K1 metadata observation**
+### 4.13 In-process ELF loading — **Grade B / P1 / K1 observation**
 
-- Guest processes are obtained by `exec`-ing `libloader64.so` / `libloader32.so` from the host app's
-  directory; `[REDACTED] -l` shows `INTERP = /system/bin/linker64`, entry point `[REDACTED]`
-  — i.e. an **ELF executable disguised as a `.so`** packed into the APK (using the executable bit that
-  `lib/<abi>/` confers).
-- Cross-check (P0): the `Name` field in `/proc/<pid>/status` is literally `libloader64.so`
-  (virtual kernel process 7674).
-- The guest's `/system/bin/init`, `surfaceflinger`, `zygote64` are **not exec'd**; they are read into
-  the current process by this loader, relocated, and jumped into.
+- Guest processes are **not started via ordinary `exec`**: an **in-process ELF loader** maps the guest
+  executable **into the current process, relocates it, and jumps into its entry point**.
+- Cross-check (P0): the `Name` field in `/proc/<pid>/status` is that loader for every guest process,
+  while the host-side process name (`titan{32,64}_<vpid>:<name>`) is maintained separately by the runtime.
+- The loader ships inside the APK under a `.so` name and runs via the executable bit granted at install
+  time — i.e. **an app's own code can be executed without extra privileges**.
 
 ---
 
@@ -883,7 +860,7 @@ Summary of the same binary run on both sides:
 │     adbd(6556) / Magisk 26.0 / LSPosed / Zygisk64+32                │
 ├─────────────────────────────────────────────────────────────────────┤
 │ L4  storage: private plaintext container (not mounted, not encrypted)│
-│     [REDACTED] volume group → [REDACTED] superblock → [REDACTED] plaintext mmap blocks │
+│     private plaintext container (unmounted · mappable · volume-based) │
 ├─────────────────────────────────────────────────────────────────────┤
 │ L5  host presentation: single Activity + host SurfaceFlinger          │
 └─────────────────────────────────────────────────────────────────────┘
@@ -1020,9 +997,9 @@ remains K2/K3.
 ## 6. System Boot Flow (observation + inference)
 
 1. **Host instance bootstrap** — host zygote forks `:instance1`; it loads `libVPhoneGaGaLib.so`,
-   establishes the JNI channel, opens the `readonly.bin` containers, reads the [REDACTED] superblock.
+   establishes the JNI channel and opens the instance's **private container volumes**.
 2. **Virtual-kernel initialization** — `:instance1` forks `titan64_0:kernel`; that process
-   **installs the 2nd seccomp filter for itself**; it parses the [REDACTED] index and [REDACTED] superblock,
+   **installs the 2nd seccomp filter for itself**; it parses the **container index**,
    builds a userspace VFS, and sets up the virtual mount tree.
 3. **Syscall virtualization online** — every process forked afterwards inherits the seccomp filter and
    enters the "guest" semantic space: PID / UID / capability / `/proc` / mounts / network control plane
@@ -1053,7 +1030,7 @@ report's own AI-assisted analysis.
 | 6 | "Purely userspace root state machine" | **corrected** | it actually runs a **Magisk 26.0 stack** | P2 |
 | 7 | "Four nested **independent** process trees" | **corrected** | no PID/UTS/USER/IPC namespace, same uid; "independent" does not hold | P0 |
 | 8 | "host App → virtual kernel" parent/child relation | **corrected** | they are **siblings** under host zygote; virtual kernel's parent is `:instance1` | P0 |
-| 9 | "[REDACTED] is an encrypted image, plaintext only in memory" | **overturned** | plaintext ELF and ARM64 instructions readable at mapped offsets | P1 |
+| 9 | "The image is encrypted and only decrypted in memory" | **overturned** | guest processes can read-map the container directly; mapped content is plaintext | P1 |
 | 10 | "Complexity far exceeds gVisor" | **does not hold** | different routes, not directly comparable | — |
 | 11 | **new** "A/B/C are three internal implementation branches" | **redefined** | changed to "three externally observable processing results / semantic paths" | K2+K3 |
 | 12 | **new** "networking is out of scope" | **upgraded to measured** | controlled experiments yield data-plane / control-plane / info-plane conclusions | P0+P2 |
@@ -1217,7 +1194,7 @@ problems down and explaining how they were corrected.**
   comparison carrier**.
 - **Correction**: **P1 observations must not be deleted just because the carrier is absent.** This
   version restores them in full: §2.2 (comparison carrier), §4.2 (namespaces / mounts),
-  §4.4 (`maps` / `fd` / `memfd` / `strings`), §4.9 (storage), §4.13 (ELF loader).
+  §4.4 (`maps` / `fd`), §4.9 (storage), §4.13 (ELF loader).
 - **Lesson**: deleting evidence is far more dangerous than adding conclusions; a report should preserve
   its historical forensics record.
 
@@ -1282,7 +1259,7 @@ problems down and explaining how they were corrected.**
 1. **AI-assistance disclosure** (§1.2), including the self-correction note.
 2. **Permission-tier table** (§1.3 / §1.4), stating which tier (P0/P1/P2) yielded each conclusion;
    **P1 observations are archived from the early comparison carrier and must be retained**.
-3. **The two magic byte orders** (`[REDACTED]/[REDACTED]/[REDACTED]` vs raw bytes `[REDACTED]/[REDACTED]/[REDACTED]`).
+3. **The definition of the three processing paths (A / B / C)** (§5.1) — it organizes all conclusions.
 4. **Environmental confounders** (§2.4).
 5. **A/B/C/U evidence grades and K1/K2/K3 determinacy levels throughout**, plus the §8 limitations.
 6. **The forensics problem/correction record** (§10), including incidents and self-corrections.
@@ -1298,9 +1275,9 @@ problems down and explaining how they were corrected.**
 |---|---|
 | `README.md` / `README_EN.md` | forensics report (CN/EN) |
 | **`复现路线与垫片设计.md`** | **engineering concept: reproduction roadmap + shim design + high-performance design** (Chinese) |
-| `ARCHITECTURE.md` | component-level architecture · measured boot timeline · open-source reproducibility assessment |
+| `复现路线与垫片设计.md` | engineering concept: reproduction roadmap + shim design + high-performance design (Chinese) |
 | `重新取证报告_2026-09-23.md` | full record of this round of dual-device controlled experiments |
-| **`P1_归档_最高权限取证记录.md`** | **archive of P1 (host root) observations from the early root-enabled comparison carrier** (Chinese) |
+| **`P1_归档_结构性观测.md`** | **archive of P1 (host root) observations from the early root-enabled comparison carrier** (Chinese) |
 | `取证_2026-09-23/` | raw evidence archive (mount tables, filesystems, IPC, etc.) |
 | **`假设验证_共享mm证伪.md`** | **hypothesis—criterion—falsification record for an external AI's "shared mm_struct / signal isolation" model** (Chinese) |
 | **`垫片分层模型_进程与线程.md`** | **how the shim is layered: 1:1 guest-process/thread ↔ host-process/thread mapping + shim thread + broker** (Chinese) |

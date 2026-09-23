@@ -805,9 +805,69 @@ Summary of the same binary run on both sides:
 | Networking | own userspace stack | **real host sockets + control-plane proxy + /proc projection (K1)** |
 | What the guest "sees" | an independent kernel abstraction implemented by sentry | a **per-path synthesized projection (K1 result)** |
 | Essence | **"I built a kernel"** | externally, **"I acted out a kernel"**; identity / mounts / network control plane all involve **userspace semantic handling that the host kernel cannot directly explain** |
-| Core engineering | kernel semantic completeness | `/proc` field-by-field projection consistency + mount semantic subset + Magisk ecosystem compatibility + device adaptation |
+| Core engineering | kernel semantic completeness (network stack / memory / filesystem all self-built) | **correctness of the cross-process semantic shim** (see §5.5); `/proc` field consistency + Magisk compatibility + device adaptation are the concrete grind on top of it |
 
-### 5.5 Minimal architecture model (compressed skeleton)
+### 5.5 Where the real engineering effort is: the cross-process semantic shim runtime
+
+> This section corrects the earlier claim that the "field-by-field grind" was the main difficulty.
+> That grind exists, but it is **surface-level**; the real difficulty is the **architectural multi-process semantic shim**.
+
+#### 5.5.1 Topology comparison with conventional architectures
+
+| Architecture | Process topology | syscall handling | Who maintains context |
+|---|---|---|---|
+| QEMU / KVM | **1 main process** + N vCPU threads | vCPU traps → VMM | VMM owns the address space; simple |
+| gVisor | **1 sentry process** | traps into sentry, reimplemented in Go | sentry owns it; simple |
+| LXC / Docker | N host processes | **straight to host kernel** (with ns/cap) | the kernel; no shim |
+| proot / ptrace | N host processes | ptrace interception, **still calls real syscalls** (path rewrite only) | kernel + tracer |
+| **This product** | **N host processes + in-process shim + central broker** | in-process shim captures → **IPC** → broker decides semantics, **without calling privileged syscalls** | **broker, distributed across processes** |
+
+**The conventional intuition is "one main process holds the whole guest." This product does the opposite: it splits one guest into a hundred-plus host processes.** That is its special point.
+
+#### 5.5.2 The difficulties, one by one
+
+1. **One ledger must be shared across processes**
+   Virtual PID / UID / capability / cwd / fd table / mount view / mm context all live **in a single address
+   space** in a VM or sentry; here they must sit in the broker and be referenced by every carrier process
+   over IPC. **State is not local — it is one hop away.**
+
+2. **"It does not even call for permission" — the most critical difference**
+   It **does not enter the kernel for privileges at all**: the privileged calls `mount` / `setuid` / `capset`
+   **never happen**.
+   - So **giving it root or debug privileges is useless** — it never issues that privileged syscall;
+   - permission decisions are made entirely by the broker's own policy table;
+   - this is exactly why "**uid 10000 can mount, and mount/umount are asymmetric**" (§4.6.1).
+   ⇒ Things that a real system solves by "just calling the kernel" must here be **fully re-implemented in software**.
+
+3. **Every syscall may cross a process boundary**
+   One call = argument capture → serialization → IPC → broker decision → return → register write-back.
+   This requires handling concurrency, ordering, timeouts, back-pressure, and message cleanup.
+   ⇒ Effectively **building a distributed RPC system without kernel help, while appearing as a single-machine kernel**.
+
+4. **Process lifecycle must be mirrored**
+   `fork` / `exec` / `exit` / task-death must be reflected in both the carrier process and the broker;
+   this involves orphan reaping, subreaper semantics, and context lifecycle synchronization.
+
+5. **Offload the heavy lifting to the host OS**
+   Scheduling (CFS), page cache, `mmap` / VMA, GPU, real sockets — these are **not reimplemented, but borrowed**.
+   This is the **precondition** for running inside an app sandbox, and what "a portion of the computation is
+   fully offloaded to the operating system" means.
+
+6. **The price: two-ledger consistency**
+   Some semantics come from host-kernel truth, others are userspace simulations, and the two must still look
+   consistent.
+   ⇒ This is exactly the source of the `/proc` vs `mount` contradiction and the `/proc/net/*` vs real-socket mismatch.
+
+#### 5.5.3 In one sentence
+
+> It **simulates a single-process LibOS using a multi-process topology plus a full semantic shim**, while
+> delegating the expensive data plane to the host kernel.
+> The difficulty is not interception itself, but:
+> **making a hundred-plus host processes appear externally as one consistent Android device, without kernel
+> help in maintaining context.**
+> This also explains why it is not something a conventional project can easily produce.
+
+### 5.6 Minimal architecture model (compressed skeleton)
 
 Compressing everything that has K1 support yields the following minimal model — enough to answer
 "if one wanted to build something similar, what would it take?":
@@ -1090,6 +1150,7 @@ problems down and explaining how they were corrected.**
 | 3 | "Simple library hijack, handled in place" | cross-component IPC + userspace VFS + mount tree | oversimplified model |
 | 4 | "Host cannot see it ⇒ the function does not exist" | userspace builds the semantics; the host is inherently blind | paradigm blind spot |
 | 5 | treating A/B/C as "three internal implementation branches" | changed to "three externally observable processing paths" | overreaching wording |
+| 6 | treating "the field-by-field grind / `/proc` consistency" as the main engineering effort | the main effort is the **cross-process semantic shim runtime** (see §5.5); the grind is only surface-level | mistaking the surface for the hard part |
 
 ### 10.7 Still-open problems (undetermined)
 

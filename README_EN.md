@@ -9,7 +9,7 @@
 | **Quick start** | ⭐ **[中文速览](架构速览.md)** · **[English overview](架构速览_EN.md)** — one-minute overview of the idea and its trade-offs (conjectural) |
 | Official site | <https://vphoneos.com> |
 | Related public patent | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Publication No. **CN111026449B** (public document, reference only) |
-| License | **MIT** — applies only to **this repository's own text and test code**; product names, trademarks, third-party binaries, and cited materials are **not covered** (see [`LICENSE`](LICENSE)) |
+| License | **CC BY-NC 4.0** (Attribution–NonCommercial) — applies only to **this repository's own content**; product names, trademarks, third-party binaries, and cited materials are **not covered** (see [`LICENSE`](LICENSE)) |
 | Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) + **dual-device controlled experiments** |
 | Carriers | 1 host device (OnePlus PJE110) + its built-in Android 10 guest instance |
 | Permission tiers | **P0** host adbd (unrooted) · **P1** host root (**early comparison carrier only**) · **P2** guest-internal shell (shell / su) |
@@ -63,6 +63,8 @@ and does not represent the product's real implementation; everything about the p
   competition against it.
 - **No patent practice**: we have **not** made, used, sold, or imported any product or method falling
   within the scope of the relevant patent (e.g. CN111026449B).
+- **License**: this repository's own content is under **CC BY-NC 4.0** (Attribution–NonCommercial), consistent
+  with the non-commercial positioning above; see [`LICENSE`](LICENSE).
 
 > This is an independent third-party analysis and does not represent the vendor's position. **If the vendor requests it, this repository can be closed.**
 

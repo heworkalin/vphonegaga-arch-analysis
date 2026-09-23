@@ -1,0 +1,4 @@
+# sh.sh 实时写入的捕获文件（每次运行追加，不入库）
+process_log.txt
+process_log.txt.*
+.tmpwork/

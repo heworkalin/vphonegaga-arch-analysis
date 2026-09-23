@@ -657,7 +657,7 @@ Host-side private directory `files/instance1/androidfs_10.0.0/`:
 - **`readonly.bin` is unencrypted**: guest processes **mmap the file directly**, and at mapped
   offsets one reads `7f 45 4c 46` (ELF) and valid ARM64 instructions. **K1.**
 
-### 4.10 Virtual root — **Grade C / P2 / K1 form observation + K2 mechanism**
+### 4.10 Virtual root and Magisk — **Grade C / P2 / K1 form observation + K2 mechanism**
 
 Measured inside the guest:
 
@@ -671,15 +671,75 @@ $ ls -l /sbin/magiskinit  →  -rwxr-x--- 1 root root 642952
 $ ls -l /sbin/su          →  /sbin/su -> ./magisk
 ```
 
+**Correction on the source of root (this version)**:
+
+> An earlier version stated "guest root is a **Magisk 26.0 stack** running inside the app UID".
+> The four-state comparison (§4.14) shows this is **not accurate**:
+>
+> **The product ships its own `su` authorization mechanism** (started directly by the guest `init`,
+> **present in all four states**: Magisk on / off / boot reset / nothing installed), and that `su`
+> **has its own toggle** managed by the product; **Magisk is an optional layer**.
+
 **Conclusion**:
 
-- The product runs a **Magisk 26.0 stack**, not a self-built root state machine.
-  ⚠️ **Evidence boundary**: no hash comparison against an official build was performed, so
-  "unmodified official build" cannot be asserted. **K1 form / K3 provenance.**
+- The product's root channel is its **own `su`**, independent of Magisk; the Magisk toggle only affects
+  Magisk's own boot chain.
 - The external reason it works: the 2nd seccomp filter/projection layer projects the return values
   of `getuid` / `getresuid` / `capget` to `0` / all capabilities.
   **Host-kernel measurement of the same process: uid=10383, CapEff=0 (P0).**
 - The host device **has no usable root path**, so guest root cannot be a host privilege escalation.
+- Magisk form: `26.0:MAGISK:R`. ⚠️ No hash comparison against an official build was performed, so
+  "unmodified official build" cannot be asserted. **K1 form / K3 provenance.**
+
+### 4.14 Magisk-layer injection mechanism, four-state comparison, and version compatibility range — **Grade C / P2 / K1 observation + K2/K3 inference**
+
+> This section is based on four host-side process captures (`process_log*.txt`,
+> `ps -ef | grep titan` polled every 0.3 s).
+
+#### 4.14.1 Four-state comparison
+
+| State | Magisk-related processes | Components | `netd` vpid | boot chain after apexd |
+|---|---|:---:|:---:|---|
+| **Magisk ON** | `magisk`(magiskinit)+`magiskd`×4+`busybox`+`sh`×6+`lspd`+`zygiskd`×2 | 117 | **60** | apexd → **magisk→magiskd→busybox→sh→lspd** → netd |
+| **Magisk OFF (boot not reset)** | `magiskd`×2+`lspd`+`zygiskd`×2+`resetprop` (**residual**) | 115 | **60** | apexd → **magiskd→app_process** → netd |
+| **Boot reset** | **0** | 102 | **42** | apexd → **netd** |
+| **Boot on, nothing installed** | **0** | 96 | **42** | apexd → **netd** |
+
+**K1 observable facts**:
+
+1. **"Boot reset" and "nothing installed" are the same clean state** — their vpid layout matches
+   item by item (`ueventd`=4, `logd`=14, `vold`=23, `netd`=42, `zygote64`=43, `zygote`=44).
+2. **The Magisk layer's insertion point is fixed**: always **after apexd, before netd**.
+3. **vpid numbering shifts as a whole with Magisk injection**: `netd` 60↔42, `zygote64` 61↔43,
+   `zygote` 62↔44 (Magisk inserts ~18 processes).
+4. **The product's own `su` is present in all four states** (started by `init`, with its own toggle).
+5. **When boot is not reset, the residual Magisk patch still sideloads `magiskd`**
+   (its parent is the virtual kernel, not init).
+
+#### 4.14.2 Injection mechanism (candidate model, K2)
+
+> The model best fitting the observations is:
+> **the product does not run the "standard Magisk install flow"; it parses the Magisk payload inside
+> the boot image and launches `magiskd` directly through its own compatibility implementation.**
+
+Supporting observations:
+
+| Observation | Why it supports the model |
+|---|---|
+| `magiskinit` (vpid 42) is a child of the **guest init** | not the standard boot flow's PID-1 takeover |
+| The Magisk phase is fixed between apexd and netd | a **chosen injection point**, not native Android order |
+| The product ships its own `su` with its own toggle | the root channel is self-built; Magisk is only an overlay |
+| With boot not reset, `magiskd` is sideloaded by the **virtual kernel** | the product parses/starts it actively, not via the full install chain |
+
+#### 4.14.3 Version compatibility range (K3 / unconfirmed)
+
+- The Magisk version measured here is **26.0** (`26.0:MAGISK:R`).
+- Empirical observation (operator): the product has a **compatibility range** for Magisk versions;
+  higher versions may fail to launch Magisk or even fail to boot the guest.
+- ⚠️ **The exact supported versions are unconfirmed**: the operator tested several versions earlier
+  but **kept no record**; this report measured only **26.0**.
+- Therefore it **must not be written as "compatible with 26.0 only" or "locked to one version"**.
+  The accurate statement is: **compatibility is version-dependent, with unknown boundaries (K3)**.
 
 ### 4.11 Scheduling priority — **Grade A / P0 / K1 observation + K2 mechanism**
 
@@ -866,6 +926,8 @@ Summary of the same binary run on both sides:
 > **making a hundred-plus host processes appear externally as one consistent Android device, without kernel
 > help in maintaining context.**
 > This also explains why it is not something a conventional project can easily produce.
+>
+> The engineering-side **reproduction roadmap and shim design (including high-performance design)** is in [`复现路线与垫片设计.md`](复现路线与垫片设计.md) (Chinese).
 
 ### 5.6 Minimal architecture model (compressed skeleton)
 
@@ -1218,6 +1280,7 @@ Remove all "bypass / crack / deceive / break through" phrasing; describe results
 | File | Content |
 |---|---|
 | `README.md` / `README_EN.md` | forensics report (CN/EN) |
+| **`复现路线与垫片设计.md`** | **engineering concept: reproduction roadmap + shim design + high-performance design** (Chinese) |
 | `ARCHITECTURE.md` | component-level architecture · measured boot timeline · open-source reproducibility assessment |
 | `重新取证报告_2026-09-23.md` | full record of this round of dual-device controlled experiments |
 | **`P1_归档_最高权限取证记录.md`** | **archive of P1 (host root) observations from the early root-enabled comparison carrier** (Chinese) |

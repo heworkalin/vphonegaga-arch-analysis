@@ -6,6 +6,8 @@
 | Previous version | v1.1 (deterministic-layering revision) |
 | Companion document | [`ARCHITECTURE.md`](ARCHITECTURE.md) — component-level architecture · measured boot timeline · open-source reproducibility assessment |
 | Target | `com.vphonegaga.titan` **3.4.0** (versionCode 3688) |
+| Official site | <https://vphoneos.com> |
+| Related public patent | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Application No. **CN201911260873.5** · Publication No. **CN111026449B** (**public reference only; we do not hold the patent**) |
 | Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) + **dual-device controlled experiments** |
 | Carriers | 1 host device (OnePlus PJE110) + its built-in Android 10 guest instance |
 | Permission tiers | **P0** host adbd (unrooted) · **P1** host root (**early comparison carrier only**) · **P2** guest-internal shell (shell / su) |
@@ -14,6 +16,32 @@
 | **Determinacy levels** | **K1** directly proven / **K2** behavior strongly supports an architectural explanation / **K3** black-box indistinguishable |
 
 [中文](./README.md)
+
+---
+
+## Research Object, Sources, and Statement
+
+This report is an **independent third-party black-box architecture analysis**. All of its material comes from three kinds of **public or self-produced** sources:
+
+| # | Material | Specific source | Nature |
+|---|---|---|---|
+| 1 | **The application** | The commercially distributed app `com.vphonegaga.titan` 3.4.0; official site <https://vphoneos.com> | publicly obtainable |
+| 2 | **Public patent document** | 《一种在安卓系统上运行虚拟安卓系统的方法》 ("A method for running a virtual Android system on an Android system")<br>Application No. **CN201911260873.5** · Publication No. **CN111026449B**<br>Applicant: 深圳市智多互动科技有限公司 · Inventors: 黄源超 / 何家明 / 龙海<br>Filed 2019-12-10 · Granted 2024-04-19 | public document (freely available to anyone) |
+| 3 | **Black-box observations** | `adb shell` / `ps` / `cat /proc` / self-compiled raw-syscall test programs on owned devices | self-produced measurements |
+
+**Academic positioning**: this report belongs to **Black-box Architecture Reverse Reconstruction** — the same paradigm as classic systems research that infers internal design from external measurement.
+
+### Statement
+
+1. This report is an **independent third-party black-box architecture analysis**; the subject is a **commercially available application obtained through public channels** (package/version in §3).
+2. All inferences about internal architecture (including "cross-process semantic shim", "central broker", "userspace mount tree") are logical reconstructions (**K2/K3 candidate models**) based on the **public patent document** (CN111026449B), **publicly available information**, and **purely black-box behavioral observation on owned devices**.
+3. This report **uses no disassembly or decompilation tools**, and **does not access, parse, or extract** any private binary code, encrypted image, or internal communication protocol.
+4. The architecture model proposed here **does not represent, and must not be read as, the product's real internal source code or original design document**. It serves only to explain observed external behavior and to inform systems-architecture research.
+5. **Citing public patent information ≠ holding the patent**; it is used here solely as public reference material.
+6. In this report, 【**K1**】 marks measured facts, 【**K2/K3**】 marks inference, 【**suggestion**】 marks this report's own design opinion.
+
+> **Principle**: describe "what was observed", never "how to bypass / rewrite / extract".
+> This report provides a **logical map of system design**, not **engineering blueprints for replication**.
 
 ---
 
@@ -160,6 +188,8 @@ image. **No packet capture, routing, or traffic analysis of any kind.**
 - This report describes **what was observed**, never **how to circumvent, patch, or extract**.
 - The report contains **no** steps, keys, or offset tables usable to defeat the product's protection.
 - This constitutes **architecture analysis and interoperability research**, not cracking.
+- Sources, public-patent citation, academic positioning, and the research-boundary statement appear in the front-matter section **"Research Object, Sources, and Statement"**.
+- **Citing public patent information ≠ holding the patent.**
 
 ### 1.8 Evidence grading and determinacy levels
 

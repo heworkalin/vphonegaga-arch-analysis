@@ -122,6 +122,10 @@
 All architecture conclusions are split into three levels: **【K1】** measured fact · **【K2/K3】** inference / indistinguishable · **【suggestion】** design opinion.
 This file is a conjectural summary; for details and evidence see [`README.md`](README.md).
 
+- **Applicable version**: `3.4.0` (3688); later versions may differ, and no inference is made about them.
+- **Purpose**: **study and research only**, non-commercial; it is **not** a substitute for the product and **not** competition against it.
+- **No patent practice**: no product or method falling within the scope of the relevant patent has been made, used, or sold.
+
 ---
 
 *End of overview. This is a conjectural summary; for details and evidence see [`README.md`](README.md).*

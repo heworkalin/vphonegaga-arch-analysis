@@ -56,6 +56,14 @@ and does not represent the product's real implementation; everything about the p
 
 **Determinacy layering**: 【**K1**】 measured fact · 【**K2/K3**】 inference · 【**suggestion**】 design opinion.
 
+### Purpose and legal characterisation
+
+- **Non-commercial purpose**: this analysis is for **study and research only** (including interoperability
+  and systems-architecture research). It is **not** a substitute for the product and **not** commercial
+  competition against it.
+- **No patent practice**: we have **not** made, used, sold, or imported any product or method falling
+  within the scope of the relevant patent (e.g. CN111026449B).
+
 > This is an independent third-party analysis and does not represent the vendor's position. **If the vendor requests it, this repository can be closed.**
 
 ---

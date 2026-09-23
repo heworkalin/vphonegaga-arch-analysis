@@ -9,6 +9,7 @@
 | Official site | <https://vphoneos.com> |
 | **Authorization status** | **No authorization obtained** · independent third-party analysis · **the official source prevails** |
 | **Compliance** | if the vendor explicitly prohibits publication, we will **manually close this repository** |
+| **License** | **MIT** (**covers only this report's own text/diagrams/test code**); **commercial privacy or third-party rights are governed by the respective official source**, see [`LICENSE`](LICENSE) |
 | Related public patent | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Application No. **CN201911260873.5** · Publication No. **CN111026449B** (**public reference only; we do not hold the patent**) |
 | Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) + **dual-device controlled experiments** |
 | Carriers | 1 host device (OnePlus PJE110) + its built-in Android 10 guest instance |
@@ -46,6 +47,8 @@ This report is an **independent third-party black-box architecture analysis**. A
 7. **Nature of the model**: the architecture model here **does not represent** the product's real internal source code or original design document; it serves only to explain observed external behavior.
 8. **Citing ≠ holding**: citing public patent information **≠** holding the patent.
 9. **Determinacy layering**: 【K1】 measured fact · 【K2/K3】 inference · 【suggestion】 this report's design opinion.
+10. **License**: this report's own text/diagrams/test code are under the **MIT** license (see [`LICENSE`](LICENSE));
+    **anything touching commercial privacy or third-party rights is governed by the respective official source**.
 
 > **Principle**: describe "what was observed", never "how to bypass / rewrite / extract".
 > This report provides a **logical map of system design**, not **engineering blueprints for replication**.

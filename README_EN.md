@@ -7,6 +7,8 @@
 | Companion document | [`ARCHITECTURE.md`](ARCHITECTURE.md) — component-level architecture · measured boot timeline · open-source reproducibility assessment |
 | Target | `com.vphonegaga.titan` **3.4.0** (versionCode 3688) |
 | Official site | <https://vphoneos.com> |
+| **Authorization status** | **No authorization obtained** · independent third-party analysis · **the official source prevails** |
+| **Compliance** | if the vendor explicitly prohibits publication, we will **manually close this repository** |
 | Related public patent | 《一种在安卓系统上运行虚拟安卓系统的方法》 · Application No. **CN201911260873.5** · Publication No. **CN111026449B** (**public reference only; we do not hold the patent**) |
 | Method | Pure runtime behavior forensics (no disassembly, no decompilation, no IDA / Ghidra / Frida) + **dual-device controlled experiments** |
 | Carriers | 1 host device (OnePlus PJE110) + its built-in Android 10 guest instance |
@@ -31,14 +33,19 @@ This report is an **independent third-party black-box architecture analysis**. A
 
 **Academic positioning**: this report belongs to **Black-box Architecture Reverse Reconstruction** — the same paradigm as classic systems research that infers internal design from external measurement.
 
-### Statement
+### Disclaimer and Compliance Statement (read first)
 
-1. This report is an **independent third-party black-box architecture analysis**; the subject is a **commercially available application obtained through public channels** (package/version in §3).
-2. All inferences about internal architecture (including "cross-process semantic shim", "central broker", "userspace mount tree") are logical reconstructions (**K2/K3 candidate models**) based on the **public patent document** (CN111026449B), **publicly available information**, and **purely black-box behavioral observation on owned devices**.
-3. This report **uses no disassembly or decompilation tools**, and **does not access, parse, or extract** any private binary code, encrypted image, or internal communication protocol.
-4. The architecture model proposed here **does not represent, and must not be read as, the product's real internal source code or original design document**. It serves only to explain observed external behavior and to inform systems-architecture research.
-5. **Citing public patent information ≠ holding the patent**; it is used here solely as public reference material.
-6. In this report, 【**K1**】 marks measured facts, 【**K2/K3**】 marks inference, 【**suggestion**】 marks this report's own design opinion.
+> **Not authorized · Third-party analysis only · The official source prevails · We comply with the vendor's wishes**
+
+1. **No authorization obtained.** This report is an **independent third-party analysis with no authorization whatsoever**. We have **no affiliation, partnership, authorization, agency, or endorsement relationship** with 深圳市智多互动科技有限公司 or the VPhoneGaGa vendor; the content does not represent the vendor's position.
+2. **Analysis and conjecture only.** This report is a **third-party analysis and conjecture** based on public information, discussing "what its logic **might roughly** be". **It does not represent, and must not be read as, a confirmed statement of how the product is actually implemented**; any conclusion may be mistaken.
+3. **The official source prevails.** This report **is not an official statement or technical document**. The product's features, architecture, and behavior are **governed solely by official releases**.
+4. **We comply with the vendor's wishes.** **If the vendor explicitly requests that this material not be public**, we will **manually close this repository** (delete or archive it).
+5. **Sources**: only the publicly distributed application, a public patent document (CN111026449B), and purely black-box observations on owned devices.
+6. **Not used**: no disassembly or decompilation tools; no access to, parsing of, or extraction of any private binary code, encrypted image, or internal communication protocol.
+7. **Nature of the model**: the architecture model here **does not represent** the product's real internal source code or original design document; it serves only to explain observed external behavior.
+8. **Citing ≠ holding**: citing public patent information **≠** holding the patent.
+9. **Determinacy layering**: 【K1】 measured fact · 【K2/K3】 inference · 【suggestion】 this report's design opinion.
 
 > **Principle**: describe "what was observed", never "how to bypass / rewrite / extract".
 > This report provides a **logical map of system design**, not **engineering blueprints for replication**.
